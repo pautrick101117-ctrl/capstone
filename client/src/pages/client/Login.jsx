@@ -70,6 +70,9 @@ const Login = () => {
                 {error}
               </div>
             ) : null}
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Resident accounts must be approved by an admin before login will work.
+            </div>
             {/* Username */}
             <div>
               <label className="flex items-center gap-1.5 text-gray-700 text-sm font-semibold mb-1">
