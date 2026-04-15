@@ -55,6 +55,27 @@ const LandingPageLayout = () => {
             <img src="/logo.png" className="h-20" />
             <p className="text-sm">BARANGAY IBA SILANG, CAVITE</p>
           </div>
+                    {/* QUICK LINKS */}
+          <div>
+            <h3 className="font-semibold mb-3">Quick Links</h3>
+            <ul className="space-y-2 text-sm text-green-100">
+              <li>
+                <NavLink to="/help-center" className="hover:text-white transition">
+                  Help Center
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/terms-of-use" className="hover:text-white transition">
+                  Terms of Use
+                </NavLink>
+              </li>
+              <li>
+                <NavLink to="/privacy-policy" className="hover:text-white transition">
+                  Privacy Policy
+                </NavLink>
+              </li>
+            </ul>
+          </div>
 
           <div className="text-sm">
             <p>Contact Us</p>
