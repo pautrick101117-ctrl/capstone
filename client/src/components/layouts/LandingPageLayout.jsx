@@ -8,7 +8,6 @@ const LandingPageLayout = () => {
     { name: "NEWS & ANNOUNCEMENT", path: "/news_and_announcement" },
     { name: "FUND TRANSPARENCY", path: "/fund_transparency" },
     { name: "OFFICIALS", path: "/officials" },
-    { name: "SK", path: "/sangguniang_kabataan" },
     { name: "LIVE VOTING", path: "/voting-result" },
   ];
 
