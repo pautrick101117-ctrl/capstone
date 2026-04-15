@@ -6,6 +6,8 @@ import NewsAndAnnouncement from './pages/client/NewsAndAnnouncement'
 import Officials from './pages/client/Officials'
 import Login from './pages/client/Login'
 import Register from './pages/client/Register'
+import SK from './pages/client/SK'
+import FundTransparency from './pages/client/FundTransparency'
 
 
 
@@ -14,7 +16,9 @@ const App = () => {
         <Route path='/' element={<LandingPageLayout />}>
             <Route index element={<Home />}/>
             <Route path ='news_and_announcement' element={<NewsAndAnnouncement />}/>
+            <Route path ='fund_transparency' element={<FundTransparency />}/>
             <Route path ='officials' element={<Officials />}/>
+            <Route path ='sangguniang_kabataan' element={<SK />}/>
             <Route path ='login' element={<Login />}/>
             <Route path ='register' element={<Register />}/>
         </Route>

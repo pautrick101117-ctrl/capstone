@@ -4,7 +4,9 @@ const LandingPageLayout = () => {
   const headerNav = [
     { name: "HOME", path: "/" },
     { name: "NEWS & ANNOUNCEMENT", path: "/news_and_announcement" },
+    { name: "FUND TRANSPARENCY", path: "/fund_transparency" },
     { name: "OFFICIALS", path: "/officials" },
+    { name: "SK", path: "/sangguniang_kabataan" },
     { name: "LOGIN", path: "/login" },
   ];
 
