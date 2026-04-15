@@ -1,9 +1,5 @@
-import React from 'react'
+import { CensusPage } from "./BarangayIbaAdmin";
 
-const Admin_Census = () => {
-  return (
-    <div>Admin_Census</div>
-  )
-}
+const Admin_Census = () => <CensusPage />;
 
-export default Admin_Census
+export default Admin_Census;

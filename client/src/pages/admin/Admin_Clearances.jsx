@@ -1,9 +1,5 @@
-import React from 'react'
+import { ClearancesPage } from "./BarangayIbaAdmin";
 
-const Admin_Clearances = () => {
-  return (
-    <div>Admin_Clearances</div>
-  )
-}
+const Admin_Clearances = () => <ClearancesPage />;
 
-export default Admin_Clearances
+export default Admin_Clearances;

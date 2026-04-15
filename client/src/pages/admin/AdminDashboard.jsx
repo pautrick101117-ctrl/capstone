@@ -1,9 +1,5 @@
-import React from 'react'
+import { DashboardPage } from "./BarangayIbaAdmin";
 
-const AdminDashboard = () => {
-  return (
-    <div>AdminDashboard</div>
-  )
-}
+const AdminDashboard = () => <DashboardPage />;
 
-export default AdminDashboard
+export default AdminDashboard;

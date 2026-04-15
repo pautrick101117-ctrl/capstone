@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const Register = () => {
+  const { requestVerificationCode, register, loading } = useAuth()
   const [form, setForm] = useState({
     firstName: '',
     middleName: '',
@@ -12,7 +14,11 @@ const Register = () => {
     address: '',
     contactNumber: '',
     validId: null,
+    verificationCode: '',
   })
+  const [step, setStep] = useState(1)
+  const [status, setStatus] = useState('')
+  const [error, setError] = useState('')
 
   const handleChange = (e) => {
     const { name, value, files } = e.target
@@ -22,9 +28,33 @@ const Register = () => {
     }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log(form)
+    setError('')
+    setStatus('')
+    try {
+      if (step === 1) {
+        await requestVerificationCode({
+          email: form.email,
+          firstName: form.firstName,
+          lastName: form.lastName,
+        })
+        setStep(2)
+        setStatus('A verification code has been sent to your email. Enter it below to complete registration.')
+        return
+      }
+
+      const payload = new FormData()
+      Object.entries(form).forEach(([key, value]) => {
+        if (value) payload.append(key, value)
+      })
+
+      const data = await register(payload)
+      setStatus(data.message)
+      setStep(3)
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   const inputClass =
@@ -38,18 +68,20 @@ const Register = () => {
       style={{ backgroundImage: "url('/landingPage-bg.png')" }}
     >
       {/* Card */}
-      <div className="bg-green-600/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
+      <div className="bg-green-600/80 backdrop-blur-sm rounded-2xl shadow-2xl p-6 sm:p-8 w-full max-w-2xl">
         {/* Header */}
         <div className="mb-6">
           <h1 className="text-white font-extrabold text-xl tracking-wide uppercase">
             Create Resident Account
           </h1>
           <p className="text-white/90 text-sm mt-1 font-medium">
-            Note: Your account will require admin approval before you can log in.
+            Note: Your account will require admin approval before you can log in, and email verification is required.
           </p>
         </div>
 
         <form onSubmit={handleSubmit}>
+          {status ? <div className="mb-4 rounded-lg bg-white/90 px-4 py-3 text-sm font-medium text-green-800">{status}</div> : null}
+          {error ? <div className="mb-4 rounded-lg bg-red-100 px-4 py-3 text-sm font-medium text-red-700">{error}</div> : null}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
             {/* LEFT COLUMN */}
             <div className="flex flex-col gap-4">
@@ -118,6 +150,20 @@ const Register = () => {
                   className={inputClass}
                 />
               </div>
+
+              {step !== 1 && (
+                <div>
+                  <label className={labelClass}>Verification Code</label>
+                  <input
+                    type="text"
+                    name="verificationCode"
+                    value={form.verificationCode}
+                    onChange={handleChange}
+                    className={inputClass}
+                    placeholder="Enter 6-digit code"
+                  />
+                </div>
+              )}
             </div>
 
             {/* RIGHT COLUMN */}
@@ -162,9 +208,10 @@ const Register = () => {
               <div className="flex flex-col gap-3 mt-auto pt-4">
                 <button
                   type="submit"
+                  disabled={loading || step === 3}
                   className="w-full bg-white text-green-800 font-bold py-2 rounded-full shadow hover:bg-green-50 transition text-sm tracking-wide"
                 >
-                  Register
+                  {step === 1 ? 'Send Verification Code' : step === 2 ? 'Complete Registration' : 'Registered'}
                 </button>
                 <Link
                   to="/login"

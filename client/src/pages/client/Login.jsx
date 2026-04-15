@@ -1,18 +1,35 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { useAuth } from '../../context/AuthContext'
 
 const Login = () => {
+  const navigate = useNavigate()
+  const { login, loading, isAuthenticated, user } = useAuth()
   const [form, setForm] = useState({ username: '', password: '', remember: false })
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target
     setForm((prev) => ({ ...prev, [name]: type === 'checkbox' ? checked : value }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    console.log(form)
+    setError('')
+    try {
+      const loggedInUser = await login({
+        usernameOrEmail: form.username,
+        password: form.password,
+      })
+      navigate(loggedInUser.role === 'resident' ? '/portal' : '/admin')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  if (isAuthenticated) {
+    return <Navigate to={user?.role === 'resident' ? '/portal' : '/admin'} replace />
   }
 
   return (
@@ -48,6 +65,11 @@ const Login = () => {
 
 
           <form onSubmit={handleSubmit} className="w-full flex flex-col gap-4">
+            {error ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {error}
+              </div>
+            ) : null}
             {/* Username */}
             <div>
               <label className="flex items-center gap-1.5 text-gray-700 text-sm font-semibold mb-1">
@@ -132,7 +154,7 @@ const Login = () => {
               type="submit"
               className="w-full bg-green-700 hover:bg-green-800 text-white font-extrabold py-2.5 rounded tracking-widest uppercase text-sm transition shadow"
             >
-              Login
+              {loading ? 'Logging in...' : 'Login'}
             </button>
           </form>
 

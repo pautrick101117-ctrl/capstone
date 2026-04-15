@@ -1,20 +1,22 @@
 import { Outlet, NavLink } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 const LandingPageLayout = () => {
+  const { isAuthenticated, user, logout } = useAuth();
   const headerNav = [
     { name: "HOME", path: "/" },
     { name: "NEWS & ANNOUNCEMENT", path: "/news_and_announcement" },
     { name: "FUND TRANSPARENCY", path: "/fund_transparency" },
     { name: "OFFICIALS", path: "/officials" },
     { name: "SK", path: "/sangguniang_kabataan" },
-    { name: "LOGIN", path: "/login" },
+    { name: "LIVE VOTING", path: "/voting-result" },
   ];
 
   return (
     <>
       {/* HEADER (OVERLAY) */}
       <header className="absolute top-0 left-0 w-full z-50 bg-[rgba(0,0,0,0.5)] border-b-2 border-green-400 text-white">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           
           <div className="flex items-center gap-4">
             <img src="/logo.png" alt="logo" className="h-14 w-14" />
@@ -24,7 +26,8 @@ const LandingPageLayout = () => {
             </div>
           </div>
 
-          <ul className="flex gap-8 text-sm font-semibold">
+          <div className="flex flex-col gap-3 lg:items-end">
+          <ul className="flex flex-wrap gap-4 lg:justify-end text-sm font-semibold">
             {headerNav.map((nav, index) => (
               <li key={index}>
                 <NavLink
@@ -40,6 +43,28 @@ const LandingPageLayout = () => {
               </li>
             ))}
           </ul>
+          <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+            {isAuthenticated ? (
+              <>
+                <NavLink to="/portal" className="rounded-full bg-white px-4 py-2 font-semibold text-green-700">
+                  {user?.firstName ? `${user.firstName}'s Portal` : "My Portal"}
+                </NavLink>
+                <button onClick={logout} className="rounded-full border border-white px-4 py-2 font-semibold text-white">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <NavLink to="/login" className="rounded-full bg-white px-4 py-2 font-semibold text-green-700">
+                  Login
+                </NavLink>
+                <NavLink to="/register" className="rounded-full border border-white px-4 py-2 font-semibold text-white">
+                  Register
+                </NavLink>
+              </>
+            )}
+          </div>
+          </div>
         </div>
       </header>
 
@@ -50,7 +75,7 @@ const LandingPageLayout = () => {
 
       {/* FOOTER */}
       <footer className="bg-green-600 text-white py-6 px-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap">
+        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-6">
           <div className="flex items-center gap-3">
             <img src="/logo.png" className="h-20" />
             <p className="text-sm">BARANGAY IBA SILANG, CAVITE</p>

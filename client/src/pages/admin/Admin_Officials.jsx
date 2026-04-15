@@ -1,9 +1,5 @@
-import React from 'react'
+import { OfficialsPage } from "./BarangayIbaAdmin";
 
-const Admin_Officials = () => {
-  return (
-    <div>Admin_Officials</div>
-  )
-}
+const Admin_Officials = () => <OfficialsPage />;
 
-export default Admin_Officials
+export default Admin_Officials;

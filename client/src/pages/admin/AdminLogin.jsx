@@ -1,9 +1,5 @@
-    import React from 'react'
-    
-    const AdminLogin = () => {
-      return (
-        <div>AdminLogin</div>
-      )
-    }
-    
-    export default AdminLogin
+import { AdminLoginPage } from "./BarangayIbaAdmin";
+
+const AdminLogin = () => <AdminLoginPage />;
+
+export default AdminLogin;

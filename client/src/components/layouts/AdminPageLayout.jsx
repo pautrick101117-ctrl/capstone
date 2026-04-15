@@ -1,13 +1,5 @@
-import { Outlet } from 'react-router-dom'
+import { AdminLayoutShell } from "../../pages/admin/BarangayIbaAdmin";
 
-const AdminPageLayout = () => {
-  return (
-    <>
-        <nav></nav>
-        <Outlet />
-        <footer></footer>
-    </>
-  )
-}
+const AdminPageLayout = () => <AdminLayoutShell />;
 
-export default AdminPageLayout
+export default AdminPageLayout;

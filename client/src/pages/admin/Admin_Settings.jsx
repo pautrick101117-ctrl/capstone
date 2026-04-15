@@ -1,9 +1,5 @@
-import React from 'react'
+import { SettingsPage } from "./BarangayIbaAdmin";
 
-const Admin_Settings = () => {
-  return (
-    <div>Admin_Settings</div>
-  )
-}
+const Admin_Settings = () => <SettingsPage />;
 
-export default Admin_Settings
+export default Admin_Settings;
