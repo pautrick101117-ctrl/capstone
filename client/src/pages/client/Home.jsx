@@ -43,11 +43,11 @@ const Home = () => {
       <section className="bg-gray-100 py-10 px-6">
         <div className="max-w-3xl mx-auto text-center">
 
-          <NavLink to="/fund_transparency" className="bg-green-600 text-white px-2 mb-10 py-2 rounded-full font-semibold ">
+          <NavLink to="/fund_transparency" className="bg-green-600 py-2  text-white px-4 rounded-full font-semibold ">
             FUND TRANSPARENCY
           </NavLink>
 
-          <div className="space-y-4">
+          <div className="space-y-4 mt-4">
             {[
               "Project: Preparation for the Upcoming Basketball and Volleyball League",
               "Project: Kontra Dengue Clean-Up Drive",
