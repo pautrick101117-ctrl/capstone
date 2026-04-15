@@ -5,7 +5,7 @@ import { requireSupabase } from "../lib/supabase.js";
 import { sendVerificationEmail } from "../lib/mailer.js";
 import { signToken } from "../lib/jwt.js";
 import { rateLimit } from "../middleware/rateLimit.js";
-import { comparePassword, createCode, hashPassword, sanitizeUser } from "../utils/helpers.js";
+import { comparePassword, createCode, hashPassword, normalizeRole, sanitizeUser } from "../utils/helpers.js";
 import { logAudit } from "../utils/audit.js";
 import { requireAuth } from "../middleware/auth.js";
 import { env } from "../lib/env.js";
@@ -169,13 +169,13 @@ router.post("/login", rateLimit({ key: "login", max: 10, windowMs: 15 * 60_000 }
       throw Object.assign(new Error("Your account is pending admin approval."), { status: 403 });
     }
 
-    if (adminOnly && !["super_admin", "staff"].includes(user.role)) {
+    if (adminOnly && normalizeRole(user.role) !== "admin") {
       throw Object.assign(new Error("Admin access only."), { status: 403 });
     }
 
     const token = signToken({
       sub: user.id,
-      role: user.role,
+      role: normalizeRole(user.role),
       email: user.email,
     });
 
@@ -195,15 +195,29 @@ router.get("/me", requireAuth, async (req, res, next) => {
     const { data: user, error } = await db.from("users").select("*").eq("id", req.auth.sub).single();
     if (error) throw error;
 
+    const { data: election } = await db.from("elections").select("id").eq("status", "live").maybeSingle();
+    let hasVoted = false;
+    if (election) {
+      const { data: vote } = await db
+        .from("votes")
+        .select("id")
+        .eq("election_id", election.id)
+        .eq("user_id", req.auth.sub)
+        .maybeSingle();
+      hasVoted = Boolean(vote);
+    }
+
     const { data: notifications } = await db
       .from("notifications")
       .select("*")
-      .eq("user_id", req.auth.sub)
+      .or(`user_id.eq.${req.auth.sub},broadcast.eq.true`)
       .order("created_at", { ascending: false })
       .limit(20);
 
+    const safeUser = sanitizeUser({ ...user, has_voted: hasVoted });
+
     res.json({
-      user: sanitizeUser(user),
+      user: safeUser,
       notifications: notifications || [],
     });
   } catch (error) {

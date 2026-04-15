@@ -13,7 +13,7 @@ const AdminLogin = () => {
   const { login, loading, isAuthenticated, user: authUser } = useAuth();
 
   useEffect(() => {
-    if (isAuthenticated && ["super_admin", "staff"].includes(authUser?.role)) {
+    if (isAuthenticated && authUser?.role === "admin") {
       navigate("/admin");
     }
   }, [isAuthenticated, authUser, navigate]);

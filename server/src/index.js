@@ -4,6 +4,7 @@ import authRoutes from "./routes/auth.js";
 import votingRoutes from "./routes/voting.js";
 import adminRoutes from "./routes/admin.js";
 import notificationRoutes from "./routes/notifications.js";
+import complaintRoutes from "./routes/complaints.js";
 import { env } from "./lib/env.js";
 
 const app = express();
@@ -37,6 +38,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/voting", votingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/complaints", complaintRoutes);
 
 app.use((error, _req, res, _next) => {
   const status = error.status || 500;

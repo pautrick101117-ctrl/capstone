@@ -1,4 +1,5 @@
 import { verifyToken } from "../lib/jwt.js";
+import { normalizeRole } from "../utils/helpers.js";
 
 export const requireAuth = (req, _res, next) => {
   const authHeader = req.headers.authorization || "";
@@ -17,7 +18,7 @@ export const requireAuth = (req, _res, next) => {
 };
 
 export const requireRole = (...roles) => (req, _res, next) => {
-  if (!req.auth || !roles.includes(req.auth.role)) {
+  if (!req.auth || !roles.includes(normalizeRole(req.auth.role))) {
     return next(Object.assign(new Error("You do not have access to this action."), { status: 403 }));
   }
 

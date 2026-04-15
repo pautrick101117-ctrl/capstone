@@ -3,16 +3,22 @@ import bcrypt from "bcryptjs";
 import { requireSupabase } from "../lib/supabase.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { logAudit } from "../utils/audit.js";
+import { normalizeRole } from "../utils/helpers.js";
 
 const router = express.Router();
 
-router.use(requireAuth, requireRole("super_admin", "staff"));
+router.use(requireAuth, requireRole("admin"));
 
 const ensure = (value, message) => {
   if (!value) {
     throw Object.assign(new Error(message), { status: 400 });
   }
 };
+
+const formatUser = (user) => ({
+  ...user,
+  role: normalizeRole(user.role),
+});
 
 const tableCrud = ({ table, label }) => {
   router.get(`/${table}`, async (_req, res, next) => {
@@ -75,7 +81,7 @@ router.get("/dashboard", async (_req, res, next) => {
     const db = requireSupabase();
     const counts = await Promise.all([
       db.from("users").select("*", { count: "exact", head: true }).eq("role", "resident"),
-      db.from("users").select("*", { count: "exact", head: true }).in("role", ["super_admin", "staff"]),
+      db.from("users").select("*", { count: "exact", head: true }).in("role", ["admin", "super_admin", "staff"]),
       db.from("complaints").select("*", { count: "exact", head: true }),
       db.from("users").select("*", { count: "exact", head: true }).eq("status", "pending"),
       db.from("clearances").select("*", { count: "exact", head: true }).eq("status", "pending"),
@@ -104,7 +110,7 @@ router.get("/users", async (_req, res, next) => {
     const db = requireSupabase();
     const { data, error } = await db.from("users").select("*").order("created_at", { ascending: false });
     if (error) throw error;
-    res.json({ users: data || [] });
+    res.json({ users: (data || []).map(formatUser) });
   } catch (error) {
     next(error);
   }
@@ -127,7 +133,7 @@ router.post("/admin-users", async (req, res, next) => {
       password_hash: passwordHash,
       address: req.body.address || "",
       contact_number: req.body.contactNumber || "",
-      role: req.body.role === "staff" ? "staff" : "super_admin",
+      role: "admin",
       status: "approved",
       email_verified: true,
       email_verified_at: new Date().toISOString(),
@@ -144,10 +150,10 @@ router.post("/admin-users", async (req, res, next) => {
       action: "create_admin_user",
       entityType: "user",
       entityId: data.id,
-      details: { email: data.email, role: data.role },
+      details: { email: data.email, role: "admin" },
     });
 
-    res.status(201).json({ user: data });
+    res.status(201).json({ user: formatUser(data) });
   } catch (error) {
     next(error);
   }
@@ -160,6 +166,9 @@ router.patch("/users/:userId", async (req, res, next) => {
     ["status", "role", "address", "contact_number"].forEach((field) => {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
+    if (updates.role !== undefined) {
+      updates.role = normalizeRole(updates.role);
+    }
     if (req.body.password) {
       updates.password_hash = await bcrypt.hash(req.body.password, 12);
     }
@@ -176,7 +185,7 @@ router.patch("/users/:userId", async (req, res, next) => {
       details: updates,
     });
 
-    res.json({ user: updated });
+    res.json({ user: formatUser(updated) });
   } catch (error) {
     next(error);
   }
@@ -244,41 +253,72 @@ router.put("/election", async (req, res, next) => {
     const db = requireSupabase();
     const { election, options } = req.body;
     ensure(election?.title, "Election title is required.");
+    ensure(Array.isArray(options) && options.length >= 2, "At least two voting options are required.");
+    const sanitizedOptions = options
+      .map((option) => ({
+        name: option.name?.trim(),
+        description: option.description || "",
+        votes_count: Number(option.votes_count || 0),
+      }))
+      .filter((option) => option.name);
+    ensure(sanitizedOptions.length >= 2, "At least two valid voting options are required.");
 
     let savedElection;
+    const electionPayload = {
+      title: election.title,
+      description: election.description || "",
+      status: election.status || "draft",
+      starts_at: election.startsAt || null,
+      ends_at: election.endsAt || null,
+    };
+
     if (election.id) {
-      const { data, error } = await db.from("elections").update(election).eq("id", election.id).select("*").single();
+      const { data, error } = await db.from("elections").update(electionPayload).eq("id", election.id).select("*").single();
       if (error) throw error;
       savedElection = data;
     } else {
-      const { data, error } = await db.from("elections").insert(election).select("*").single();
+      const { data, error } = await db.from("elections").insert(electionPayload).select("*").single();
       if (error) throw error;
       savedElection = data;
+    }
+
+    if (savedElection.status === "live") {
+      const closeLive = await db
+        .from("elections")
+        .update({ status: "closed" })
+        .neq("id", savedElection.id)
+        .eq("status", "live");
+      if (closeLive.error) throw closeLive.error;
+
+      const resetVotesFlag = await db.from("users").update({ has_voted: false }).eq("role", "resident");
+      if (resetVotesFlag.error) throw resetVotesFlag.error;
     }
 
     if (Array.isArray(options)) {
       const remove = await db.from("election_options").delete().eq("election_id", savedElection.id);
       if (remove.error) throw remove.error;
-      if (options.length) {
+      if (sanitizedOptions.length) {
         const insert = await db.from("election_options").insert(
-          options.map((option) => ({
+          sanitizedOptions.map((option) => ({
             election_id: savedElection.id,
             name: option.name,
             description: option.description || "",
-            votes_count: option.votes_count || 0,
+            votes_count: option.votes_count,
           }))
         );
         if (insert.error) throw insert.error;
       }
     }
 
-    await db.from("notifications").insert({
-      title: "Election is now live",
-      body: `${savedElection.title} is now available for residents.`,
-      kind: "info",
-      user_id: null,
-      broadcast: true,
-    });
+    if (savedElection.status === "live") {
+      await db.from("notifications").insert({
+        title: "Election is now live",
+        body: `${savedElection.title} is now available for residents.`,
+        kind: "info",
+        user_id: null,
+        broadcast: true,
+      });
+    }
 
     await logAudit({
       actorId: req.auth.sub,
@@ -308,7 +348,41 @@ router.get("/audit-logs", async (_req, res, next) => {
 
 tableCrud({ table: "officials", label: "official" });
 tableCrud({ table: "clearances", label: "clearance" });
-tableCrud({ table: "complaints", label: "complaint" });
 tableCrud({ table: "census_households", label: "census" });
+
+router.get("/complaints", async (_req, res, next) => {
+  try {
+    const db = requireSupabase();
+    const { data, error } = await db.from("complaints").select("*").order("created_at", { ascending: false });
+    if (error) throw error;
+    res.json({ complaints: data || [] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch("/complaints/:id", async (req, res, next) => {
+  try {
+    const db = requireSupabase();
+    const payload = {};
+    if (req.body.status !== undefined) payload.status = req.body.status;
+    if (req.body.details !== undefined) payload.details = req.body.details;
+    const { data, error } = await db.from("complaints").update(payload).eq("id", req.params.id).select("*").single();
+    if (error) throw error;
+
+    await logAudit({
+      actorId: req.auth.sub,
+      actorRole: normalizeRole(req.auth.role),
+      action: "update_complaint",
+      entityType: "complaint",
+      entityId: req.params.id,
+      details: payload,
+    });
+
+    res.json({ item: data });
+  } catch (error) {
+    next(error);
+  }
+});
 
 export default router;

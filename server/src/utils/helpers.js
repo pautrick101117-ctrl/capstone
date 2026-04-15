@@ -4,6 +4,14 @@ export const hashPassword = async (bcrypt, password) => bcrypt.hash(password, 12
 
 export const comparePassword = async (bcrypt, password, hash) => bcrypt.compare(password, hash);
 
+export const normalizeRole = (role) => {
+  if (["admin", "super_admin", "staff"].includes(role)) {
+    return "admin";
+  }
+
+  return "resident";
+};
+
 export const sanitizeUser = (user) => ({
   id: user.id,
   email: user.email,
@@ -12,7 +20,7 @@ export const sanitizeUser = (user) => ({
   lastName: user.last_name,
   address: user.address,
   contactNumber: user.contact_number,
-  role: user.role,
+  role: normalizeRole(user.role),
   status: user.status,
   emailVerified: user.email_verified,
   emailVerifiedAt: user.email_verified_at,

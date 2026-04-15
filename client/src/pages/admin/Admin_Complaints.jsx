@@ -4,7 +4,6 @@ import {
   Paginate,
   SearchBar,
   shellStyles,
-  SmallInput,
   StatusBadge,
   Table,
   useAdminCollection,
@@ -15,35 +14,24 @@ const Admin_Complaints = () => {
   const { items: complaints, loading, reload, token } = useAdminCollection("/admin/complaints", "complaints", []);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ resident_name: "", complaint_type: "", details: "", status: "pending" });
   const perPage = 5;
   const filtered = complaints.filter(
     (complaint) =>
       complaint.resident_name.toLowerCase().includes(search.toLowerCase()) ||
-      complaint.complaint_type.toLowerCase().includes(search.toLowerCase())
+      complaint.complaint_type.toLowerCase().includes(search.toLowerCase()) ||
+      (complaint.details || "").toLowerCase().includes(search.toLowerCase())
   );
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
   const total = complaints.length;
   const resolved = complaints.filter((complaint) => complaint.status === "resolved").length;
   const pending = complaints.filter((complaint) => complaint.status === "pending").length;
 
-  const saveComplaint = async () => {
-    await api("/admin/complaints", { method: "POST", token, body: form });
-    setForm({ resident_name: "", complaint_type: "", details: "", status: "pending" });
-    await reload();
-  };
-
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 800, fontSize: 22, color: "#2d7a3a" }}>Complaints</div>
-        <GreenBtn onClick={saveComplaint}>Add Complaint</GreenBtn>
       </div>
       <div style={{ ...shellStyles.card, marginBottom: 20 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 16 }}>
-          <SmallInput value={form.resident_name} onChange={(e) => setForm((prev) => ({ ...prev, resident_name: e.target.value }))} placeholder="Resident name" />
-          <SmallInput value={form.complaint_type} onChange={(e) => setForm((prev) => ({ ...prev, complaint_type: e.target.value }))} placeholder="Complaint type" />
-        </div>
         <SearchBar
           value={search}
           onChange={(value) => {
@@ -52,13 +40,14 @@ const Admin_Complaints = () => {
           }}
         />
         <Table
-          cols={["ID", "Resident", "Type", "Date Filed", "Status"]}
+          cols={["ID", "Resident", "Type", "Details", "Date Filed", "Status"]}
           rows={paged}
           renderRow={(complaint) => (
             <>
               <td style={{ padding: "8px 10px" }}>{String(complaint.id).slice(0, 8)}</td>
               <td style={{ padding: "8px 10px" }}>{complaint.resident_name}</td>
               <td style={{ padding: "8px 10px" }}>{complaint.complaint_type}</td>
+              <td style={{ padding: "8px 10px", maxWidth: 280 }}>{complaint.details || "-"}</td>
               <td style={{ padding: "8px 10px" }}>{new Date(complaint.created_at).toLocaleDateString()}</td>
               <td style={{ padding: "8px 10px" }}>
                 <div style={{ display: "flex", gap: 6, alignItems: "center" }}>

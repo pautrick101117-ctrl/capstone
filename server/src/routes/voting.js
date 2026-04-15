@@ -48,13 +48,19 @@ router.post("/vote", requireAuth, rateLimit({ key: "vote", max: 3, windowMs: 60_
     const { optionId } = req.body;
 
     const { data: user } = await db.from("users").select("*").eq("id", req.auth.sub).single();
-    if (user.has_voted) {
-      throw Object.assign(new Error("You have already voted."), { status: 409 });
-    }
-
     const { data: election } = await db.from("elections").select("*").eq("status", "live").maybeSingle();
     if (!election) {
       throw Object.assign(new Error("There is no live election right now."), { status: 400 });
+    }
+
+    const { data: existingVote } = await db
+      .from("votes")
+      .select("id")
+      .eq("election_id", election.id)
+      .eq("user_id", user.id)
+      .maybeSingle();
+    if (existingVote) {
+      throw Object.assign(new Error("You have already voted in this election."), { status: 409 });
     }
 
     const { data: option } = await db
@@ -96,8 +102,19 @@ router.post("/vote", requireAuth, rateLimit({ key: "vote", max: 3, windowMs: 60_
 router.get("/my-status", requireAuth, async (req, res, next) => {
   try {
     const db = requireSupabase();
-    const { data: user } = await db.from("users").select("has_voted").eq("id", req.auth.sub).single();
-    res.json({ hasVoted: Boolean(user?.has_voted) });
+    const { data: election } = await db.from("elections").select("id").eq("status", "live").maybeSingle();
+    if (!election) {
+      return res.json({ hasVoted: false });
+    }
+
+    const { data: vote } = await db
+      .from("votes")
+      .select("id")
+      .eq("election_id", election.id)
+      .eq("user_id", req.auth.sub)
+      .maybeSingle();
+
+    res.json({ hasVoted: Boolean(vote) });
   } catch (error) {
     next(error);
   }

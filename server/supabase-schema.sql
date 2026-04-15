@@ -97,6 +97,7 @@ create table if not exists landing_content (
 
 create table if not exists complaints (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete set null,
   resident_name text not null,
   complaint_type text not null,
   details text default '',
@@ -105,6 +106,8 @@ create table if not exists complaints (
 );
 
 alter table complaints add column if not exists details text default '';
+alter table complaints add column if not exists user_id uuid references users(id) on delete set null;
+update users set role = 'admin' where role in ('super_admin', 'staff');
 
 create table if not exists officials (
   id uuid primary key default gen_random_uuid(),

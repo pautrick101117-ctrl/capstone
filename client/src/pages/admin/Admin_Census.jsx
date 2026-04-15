@@ -16,15 +16,31 @@ const Admin_Census = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [form, setForm] = useState({ household_name: "", purok: "", members: 1, house_number: "", status: "active" });
+  const [feedback, setFeedback] = useState({ error: "", success: "" });
   const perPage = 5;
   const filtered = census.filter((item) => item.household_name.toLowerCase().includes(search.toLowerCase()));
   const paged = filtered.slice((page - 1) * perPage, page * perPage);
   const totalMembers = census.reduce((sum, item) => sum + Number(item.members || 0), 0);
 
   const saveHousehold = async () => {
-    await api("/admin/census_households", { method: "POST", token, body: form });
-    setForm({ household_name: "", purok: "", members: 1, house_number: "", status: "active" });
-    await reload();
+    if (!form.household_name.trim() || !form.purok.trim() || !form.house_number.trim() || Number(form.members) < 1) {
+      setFeedback({ error: "Household name, purok, house number, and a valid member count are required.", success: "" });
+      return;
+    }
+
+    setFeedback({ error: "", success: "" });
+    try {
+      if (form.id) {
+        await api(`/admin/census_households/${form.id}`, { method: "PATCH", token, body: form });
+      } else {
+        await api("/admin/census_households", { method: "POST", token, body: form });
+      }
+      setForm({ household_name: "", purok: "", members: 1, house_number: "", status: "active" });
+      setFeedback({ error: "", success: form.id ? "Household updated." : "Household added." });
+      await reload();
+    } catch (error) {
+      setFeedback({ error: error.message, success: "" });
+    }
   };
 
   return (
@@ -47,6 +63,8 @@ const Admin_Census = () => {
         ))}
       </div>
       <div style={shellStyles.card}>
+        {feedback.error ? <div style={{ marginBottom: 12, borderRadius: 6, background: "#fdeaea", color: "#c0392b", padding: "10px 12px", fontSize: 13 }}>{feedback.error}</div> : null}
+        {feedback.success ? <div style={{ marginBottom: 12, borderRadius: 6, background: "#e6f7ed", color: "#1a7a3a", padding: "10px 12px", fontSize: 13 }}>{feedback.success}</div> : null}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 16 }}>
           <SmallInput value={form.household_name} onChange={(e) => setForm((prev) => ({ ...prev, household_name: e.target.value }))} placeholder="Household name" />
           <SmallInput value={form.purok} onChange={(e) => setForm((prev) => ({ ...prev, purok: e.target.value }))} placeholder="Purok" />
@@ -61,7 +79,7 @@ const Admin_Census = () => {
           }}
         />
         <Table
-          cols={["#", "Name", "Purok", "Members", "House Number", "Status", "Date Updated"]}
+          cols={["#", "Name", "Purok", "Members", "House Number", "Status", "Date Updated", "Actions"]}
           rows={paged}
           renderRow={(item, i) => (
             <>
@@ -88,6 +106,23 @@ const Admin_Census = () => {
                 </div>
               </td>
               <td style={{ padding: "10px 10px" }}>{new Date(item.updated_at).toLocaleDateString()}</td>
+              <td style={{ padding: "10px 10px" }}>
+                <GreenBtn
+                  small
+                  onClick={() =>
+                    setForm({
+                      id: item.id,
+                      household_name: item.household_name,
+                      purok: item.purok,
+                      members: item.members,
+                      house_number: item.house_number,
+                      status: item.status,
+                    })
+                  }
+                >
+                  Edit
+                </GreenBtn>
+              </td>
             </>
           )}
         />

@@ -13,6 +13,7 @@ import ProvicyPolicy from './pages/client/ProvicyPolicy'
 import VotingCenter from './pages/client/VotingCenter'
 import VotingResult from './pages/client/VotingResult'
 import UserDashboard from './pages/client/UserDashboard'
+import Complaints from './pages/client/Complaints'
 
 import AdminPageLayout from './components/layouts/AdminPageLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -51,10 +52,11 @@ const App = () => {
             <Route path="/" element={<UserPortalLayout />}>
                 <Route path="portal" element={<UserDashboard />} />
                 <Route path="voting-center" element={<VotingCenter />} />
+                <Route path="complaints" element={<Complaints />} />
             </Route>
         </Route>
 
-        <Route element={<ProtectedRoute roles={['super_admin', 'staff']} redirectTo="/admin/login" />}>
+        <Route element={<ProtectedRoute roles={['admin']} redirectTo="/admin/login" />}>
             <Route path="admin" element={<AdminPageLayout />}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="residents" element={<Admin_Residents />} />

@@ -27,6 +27,7 @@ const UserPortalLayout = () => {
           {[
             ["Dashboard", "/portal"],
             ["Vote", "/voting-center"],
+            ["Complaints", "/complaints"],
             ["Live Results", "/voting-result"],
           ].map(([label, path]) => (
             <NavLink
