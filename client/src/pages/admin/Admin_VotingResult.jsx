@@ -1,219 +1,236 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../../context/AuthContext";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { api } from "../../lib/api";
-import { GreenBtn, shellStyles, SmallInput } from "./adminShared";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { Badge, Button, Card, PageHeader, SelectInput, TableShell, TextArea, TextInput } from "../../components/ui";
 
-const emptyOption = () => ({
-  name: "",
+const emptyElection = {
+  title: "",
   description: "",
-  votes_count: 0,
-});
+  status: "draft",
+  startsAt: "",
+  endsAt: "",
+  sourceSuggestionId: "",
+  image: null,
+  preview: "",
+};
 
 const Admin_VotingResult = () => {
   const { token } = useAuth();
-  const [election, setElection] = useState({
-    id: "",
-    title: "",
-    description: "",
-    status: "draft",
-    startsAt: "",
-    endsAt: "",
-  });
-  const [options, setOptions] = useState([emptyOption(), emptyOption()]);
-  const [feedback, setFeedback] = useState({ error: "", success: "" });
-  const [loading, setLoading] = useState(true);
+  const toast = useToast();
+  const [suggestions, setSuggestions] = useState([]);
+  const [elections, setElections] = useState([]);
+  const [election, setElection] = useState(emptyElection);
+  const [options, setOptions] = useState([
+    { name: "", description: "" },
+    { name: "", description: "" },
+  ]);
+
+  const load = async () => {
+    const [suggestionData, electionData, resultData] = await Promise.all([
+      api("/admin/suggestions", { token }),
+      api("/admin/election", { token }),
+      api("/admin/election-results", { token }),
+    ]);
+    setSuggestions(suggestionData.suggestions || []);
+    if (electionData.election) {
+      setElection({
+        id: electionData.election.id,
+        title: electionData.election.title,
+        description: electionData.election.description || "",
+        status: electionData.election.status,
+        startsAt: electionData.election.starts_at || "",
+        endsAt: electionData.election.ends_at || "",
+        sourceSuggestionId: electionData.election.source_suggestion_id || "",
+        image: null,
+        preview: electionData.election.image_url || "",
+      });
+      setOptions((electionData.options || []).length ? electionData.options.map((item) => ({ name: item.name, description: item.description || "" })) : [{ name: "", description: "" }, { name: "", description: "" }]);
+    }
+    setElections(resultData.elections || []);
+  };
 
   useEffect(() => {
-    if (!token) return;
-
-    api("/admin/election", { token })
-      .then((data) => {
-        if (data.election) {
-          setElection({
-            id: data.election.id,
-            title: data.election.title,
-            description: data.election.description || "",
-            status: data.election.status || "draft",
-            startsAt: data.election.starts_at ? data.election.starts_at.slice(0, 16) : "",
-            endsAt: data.election.ends_at ? data.election.ends_at.slice(0, 16) : "",
-          });
-        }
-
-        if (data.options?.length) {
-          setOptions(data.options);
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    if (token) load();
   }, [token]);
 
-  const totalVotes = options.reduce((sum, option) => sum + Number(option.votes_count || 0), 0);
-  const winner = [...options].sort((a, b) => Number(b.votes_count || 0) - Number(a.votes_count || 0))[0];
-
-  const saveElection = async () => {
-    setFeedback({ error: "", success: "" });
-
-    const cleanedOptions = options
-      .map((option) => ({
-        ...option,
-        name: option.name.trim(),
-        description: (option.description || "").trim(),
-      }))
-      .filter((option) => option.name);
-
-    if (!election.title.trim()) {
-      setFeedback({ error: "Voting project title is required.", success: "" });
-      return;
-    }
-
-    if (cleanedOptions.length < 2) {
-      setFeedback({ error: "Add at least two options for residents to vote on.", success: "" });
-      return;
-    }
-
+  const reviewSuggestion = async (id, status) => {
     try {
-      const data = await api("/admin/election", {
-        method: "PUT",
-        token,
-        body: {
-          election,
-          options: cleanedOptions,
-        },
-      });
-      if (data.election) {
-        setElection((current) => ({
-          ...current,
-          id: data.election.id,
-          status: data.election.status || current.status,
-        }));
-      }
-      setOptions(cleanedOptions);
-      setFeedback({ error: "", success: election.id ? "Voting project updated." : "Voting project created." });
+      await api(`/admin/suggestions/${id}`, { method: "PATCH", token, body: { status } });
+      toast.success(`Suggestion ${status}.`);
+      await load();
     } catch (error) {
-      setFeedback({ error: error.message, success: "" });
+      toast.error(error.message);
     }
   };
 
+  const saveElection = async (event) => {
+    event.preventDefault();
+    const formData = new FormData();
+    if (election.image) formData.append("image", election.image);
+    formData.append(
+      "election",
+      JSON.stringify({
+        id: election.id,
+        title: election.title,
+        description: election.description,
+        status: election.status,
+        startsAt: election.startsAt,
+        endsAt: election.endsAt,
+        sourceSuggestionId: election.sourceSuggestionId || null,
+        imageUrl: election.preview || null,
+      })
+    );
+    formData.append("options", JSON.stringify(options));
+
+    try {
+      await api("/admin/election", { method: "PUT", token, body: formData });
+      toast.success("Election saved.");
+      await load();
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
+
+  const selectedResults = elections[0];
+
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 800, fontSize: 22, color: "#2d7a3a" }}>Voting Project Setup</div>
-        <GreenBtn onClick={saveElection}>Save Voting Project</GreenBtn>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Voting Management"
+        title="Review suggestions and manage elections"
+        description="Approve resident suggestions into election drafts, configure options and schedules, and monitor anonymous participation metrics."
+      />
 
-      <div style={{ ...shellStyles.card, padding: 24 }}>
-        {feedback.success ? (
-          <div style={{ marginBottom: 16, borderRadius: 6, background: "#e6f7ed", color: "#1a7a3a", padding: "10px 12px", fontSize: 13 }}>
-            {feedback.success}
-          </div>
-        ) : null}
-        {feedback.error ? (
-          <div style={{ marginBottom: 16, borderRadius: 6, background: "#fdeaea", color: "#c0392b", padding: "10px 12px", fontSize: 13 }}>
-            {feedback.error}
-          </div>
-        ) : null}
-
-        <div style={{ fontWeight: 700, fontSize: 17, marginBottom: 16 }}>Create what residents will vote for</div>
-        <div style={{ display: "grid", gap: 12, marginBottom: 20, gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
-          <SmallInput value={election.title} onChange={(event) => setElection((current) => ({ ...current, title: event.target.value }))} placeholder="Voting project title" />
-          <select
-            value={election.status}
-            onChange={(event) => setElection((current) => ({ ...current, status: event.target.value }))}
-            style={{ width: "100%", background: "#f5f5f5", border: "1px solid #d8d8d8", borderRadius: 6, padding: "8px 10px", fontSize: 13 }}
-          >
-            <option value="draft">Draft</option>
-            <option value="live">Live</option>
-            <option value="closed">Closed</option>
-          </select>
-          <input
-            type="datetime-local"
-            value={election.startsAt}
-            onChange={(event) => setElection((current) => ({ ...current, startsAt: event.target.value }))}
-            style={{ width: "100%", background: "#f5f5f5", border: "1px solid #d8d8d8", borderRadius: 6, padding: "8px 10px", fontSize: 13 }}
-          />
-          <input
-            type="datetime-local"
-            value={election.endsAt}
-            onChange={(event) => setElection((current) => ({ ...current, endsAt: event.target.value }))}
-            style={{ width: "100%", background: "#f5f5f5", border: "1px solid #d8d8d8", borderRadius: 6, padding: "8px 10px", fontSize: 13 }}
-          />
-          <textarea
-            value={election.description}
-            onChange={(event) => setElection((current) => ({ ...current, description: event.target.value }))}
-            placeholder="Explain the purpose of this vote"
-            style={{ minHeight: 90, gridColumn: "1 / -1", background: "#f5f5f5", border: "1px solid #d8d8d8", borderRadius: 6, padding: "10px 12px", fontSize: 14 }}
-          />
-        </div>
-
-        {loading ? <div style={{ marginBottom: 16, fontSize: 13, color: "#666" }}>Loading voting data...</div> : null}
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
-          <div style={{ background: "#2d7a3a", color: "#fff", textAlign: "center", padding: "10px 14px", borderRadius: 6, fontWeight: 700 }}>
-            Voting Options
-          </div>
-          <GreenBtn small outline onClick={() => setOptions((current) => [...current, emptyOption()])}>
-            Add Option
-          </GreenBtn>
-        </div>
-
-        <div style={{ display: "flex", gap: 20, marginBottom: 20, flexWrap: "wrap" }}>
-          {options.map((option, index) => (
-            <div key={`${option.id || "option"}-${index}`} style={{ flex: 1, minWidth: 240, borderRadius: 8, padding: 16, textAlign: "center", background: option.name && option.name === winner?.name ? "#e8f5e9" : "#f0f0f0", border: option.name && option.name === winner?.name ? "2px solid #2d7a3a" : "2px solid #ccc" }}>
-              <div style={{ width: "100%", height: 100, background: option.name && option.name === winner?.name ? "#4a7c59" : "#888", borderRadius: 6, marginBottom: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 600, padding: 8 }}>
-                <input
-                  value={option.name}
-                  onChange={(event) => setOptions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, name: event.target.value } : item)))}
-                  placeholder={`Option ${index + 1}`}
-                  style={{ width: "100%", background: "transparent", border: "none", color: "#fff", textAlign: "center", fontSize: 13, fontWeight: 600 }}
-                />
+      <div className="grid gap-6 xl:grid-cols-[0.88fr_1.12fr]">
+        <Card>
+          <h2 className="text-xl font-bold text-[var(--brand-900)]">Project Suggestions</h2>
+          <div className="mt-5 space-y-4">
+            {suggestions.map((item) => (
+              <div key={item.id} className="rounded-2xl border border-stone-200 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-[var(--brand-900)]">{item.title}</p>
+                    <p className="mt-2 text-sm text-stone-600">{item.description}</p>
+                  </div>
+                  <Badge tone={item.status === "approved" ? "success" : item.status === "rejected" ? "danger" : "info"}>{item.status}</Badge>
+                </div>
+                {item.status === "pending" ? (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button onClick={() => reviewSuggestion(item.id, "approved")}>Approve</Button>
+                    <Button variant="ghost" onClick={() => reviewSuggestion(item.id, "rejected")}>Reject</Button>
+                  </div>
+                ) : null}
               </div>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{option.name || `Option ${index + 1}`}</div>
-              <textarea
-                value={option.description || ""}
-                onChange={(event) => setOptions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, description: event.target.value } : item)))}
-                placeholder="Describe this option"
-                style={{ marginTop: 8, width: "100%", minHeight: 72, background: "#fff", border: "1px solid #d0d0d0", borderRadius: 6, padding: "8px 10px", fontSize: 13 }}
+            ))}
+          </div>
+        </Card>
+
+        <Card>
+          <h2 className="text-xl font-bold text-[var(--brand-900)]">Election Builder</h2>
+          <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={saveElection}>
+            <TextInput label="Title" className="sm:col-span-2" value={election.title} onChange={(event) => setElection((current) => ({ ...current, title: event.target.value }))} />
+            <TextArea label="Description" className="sm:col-span-2" value={election.description} onChange={(event) => setElection((current) => ({ ...current, description: event.target.value }))} />
+            <TextInput label="Starts At" type="datetime-local" value={election.startsAt} onChange={(event) => setElection((current) => ({ ...current, startsAt: event.target.value }))} />
+            <TextInput label="Ends At" type="datetime-local" value={election.endsAt} onChange={(event) => setElection((current) => ({ ...current, endsAt: event.target.value }))} />
+            <SelectInput label="Status" value={election.status} onChange={(event) => setElection((current) => ({ ...current, status: event.target.value }))}>
+              <option value="draft">Draft</option>
+              <option value="live">Live</option>
+              <option value="closed">Closed</option>
+            </SelectInput>
+            <TextInput label="Source Suggestion ID" value={election.sourceSuggestionId} onChange={(event) => setElection((current) => ({ ...current, sourceSuggestionId: event.target.value }))} />
+            <label className="sm:col-span-2 flex flex-col gap-2 text-sm font-medium text-stone-700">
+              <span>Election Image</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  setElection((current) => ({
+                    ...current,
+                    image: file || null,
+                    preview: file ? URL.createObjectURL(file) : current.preview,
+                  }));
+                }}
               />
-              <div style={{ marginTop: 10, fontSize: 13, color: "#555" }}>
-                Votes recorded: <strong>{option.votes_count || 0}</strong>
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <GreenBtn small danger onClick={() => setOptions((current) => (current.length > 2 ? current.filter((_, itemIndex) => itemIndex !== index) : current))}>
-                  Remove
-                </GreenBtn>
-              </div>
+            </label>
+            {election.preview ? <img src={election.preview} alt="Election preview" className="sm:col-span-2 h-48 w-full rounded-3xl object-cover" /> : null}
+            <div className="sm:col-span-2 space-y-3">
+              {options.map((option, index) => (
+                <div key={index} className="grid gap-3 rounded-2xl border border-stone-200 p-4 sm:grid-cols-2">
+                  <TextInput
+                    label={`Option ${index + 1} Name`}
+                    value={option.name}
+                    onChange={(event) =>
+                      setOptions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, name: event.target.value } : item)))
+                    }
+                  />
+                  <TextInput
+                    label="Description"
+                    value={option.description}
+                    onChange={(event) =>
+                      setOptions((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, description: event.target.value } : item)))
+                    }
+                  />
+                </div>
+              ))}
+              <Button type="button" variant="secondary" onClick={() => setOptions((current) => [...current, { name: "", description: "" }])}>
+                Add Option
+              </Button>
             </div>
-          ))}
-        </div>
-
-        <div style={{ textAlign: "center", fontWeight: 700, fontSize: 16, borderTop: "1px solid #e0e0e0", paddingTop: 16, marginBottom: 16 }}>
-          Total Votes: {totalVotes}
-        </div>
-
-        <div style={{ fontSize: 13, color: "#444", background: "#f9f9f9", borderRadius: 6, padding: 14 }}>
-          {winner?.name ? (
-            <>
-              With a total of {totalVotes} votes, <strong>{winner.name}</strong> is currently leading with {winner.votes_count || 0} votes.
-            </>
-          ) : (
-            "No votes have been recorded yet."
-          )}
-        </div>
-
-        <div style={{ display: "flex", gap: 12, marginTop: 20, flexWrap: "wrap" }}>
-          {options.map((option, index) => (
-            <div key={`${option.id || "bar"}-${index}`} style={{ flex: 1, minWidth: 220 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4, fontSize: 13 }}>
-                <span>{option.name || `Option ${index + 1}`}</span>
-                <span style={{ fontWeight: 700 }}>{totalVotes ? Math.round((Number(option.votes_count || 0) / totalVotes) * 100) : 0}%</span>
-              </div>
-              <div style={{ height: 10, background: "#e0e0e0", borderRadius: 5, overflow: "hidden" }}>
-                <div style={{ width: `${totalVotes ? (Number(option.votes_count || 0) / totalVotes) * 100 : 0}%`, height: "100%", background: option.name && option.name === winner?.name ? "#2d7a3a" : "#888", borderRadius: 5 }} />
-              </div>
+            <div className="sm:col-span-2">
+              <Button type="submit">Save Election</Button>
             </div>
-          ))}
-        </div>
+          </form>
+        </Card>
       </div>
+
+      <Card>
+        <h2 className="text-xl font-bold text-[var(--brand-900)]">Election Results Dashboard</h2>
+        {selectedResults ? (
+          <div className="mt-6 grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-[var(--brand-50)] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--brand-500)]">Winner</p>
+                <h3 className="mt-2 text-2xl font-black text-[var(--brand-900)]">{selectedResults.winner?.name || "No votes yet"}</h3>
+              </div>
+              <TableShell>
+                <table className="min-w-full text-sm">
+                  <tbody>
+                    {[
+                      ["Status", selectedResults.status],
+                      ["Total Votes", selectedResults.totalVotes],
+                      ["Eligible Residents", selectedResults.eligibleVoters],
+                      ["Participation Rate", `${selectedResults.participationRate}%`],
+                      ["Not Yet Voted", selectedResults.notVotedCount],
+                      ["Completion Confirmations", selectedResults.completionCount],
+                    ].map(([label, value]) => (
+                      <tr key={label} className="border-t border-stone-100">
+                        <td className="px-4 py-3 font-semibold text-stone-600">{label}</td>
+                        <td className="px-4 py-3 text-[var(--brand-900)]">{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableShell>
+            </div>
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={selectedResults.options}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="votes" fill="#2d7a3a" radius={[12, 12, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-5 text-sm text-stone-500">No election results available yet.</p>
+        )}
+      </Card>
     </div>
   );
 };

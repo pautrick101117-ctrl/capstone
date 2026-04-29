@@ -1,115 +1,134 @@
-import { Outlet, NavLink } from "react-router-dom";
+import { Menu, Shield, X } from "lucide-react";
+import { useState } from "react";
+import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
+const navItems = [
+  { label: "Home", to: "/" },
+  { label: "News", to: "/news" },
+  { label: "Announcements", to: "/announcements" },
+  { label: "Funds", to: "/fund_transparency" },
+  { label: "Officials", to: "/officials" },
+  { label: "Calendar", to: "/calendar" },
+  { label: "Results", to: "/voting-result" },
+];
+
+const navClass = ({ isActive }) =>
+  `text-sm font-semibold transition ${isActive ? "text-[var(--brand-600)]" : "text-stone-600 hover:text-[var(--brand-500)]"}`;
+
 const LandingPageLayout = () => {
+  const [open, setOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
-  const headerNav = [
-    { name: "HOME", path: "/" },
-    { name: "NEWS & ANNOUNCEMENT", path: "/news_and_announcement" },
-    { name: "FUND TRANSPARENCY", path: "/fund_transparency" },
-    { name: "OFFICIALS", path: "/officials" },
-    { name: "LIVE VOTING", path: "/voting-result" },
-  ];
 
   return (
-    <>
-      {/* HEADER (OVERLAY) */}
-      <header className="absolute top-0 left-0 w-full z-50 bg-[rgba(0,0,0,0.5)] border-b-2 border-green-400 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          
-          <div className="flex items-center gap-4">
-            <img src="/logo.png" alt="logo" className="h-14 w-14" />
+    <div className="min-h-screen bg-[var(--surface)]">
+      <header className="sticky top-0 z-50 border-b border-stone-200/80 bg-white/90 backdrop-blur">
+        <div className="section-shell flex items-center justify-between gap-4 py-4">
+          <NavLink to="/" className="flex items-center gap-3">
+            <img src="/logo.png" alt="Barangay Iba" className="h-12 w-12 rounded-2xl border border-[var(--brand-100)] bg-white p-1" />
             <div>
-              <h1 className="text-lg font-bold">BARANGAY IBA</h1>
-              <h2 className="text-xs">SILANG, CAVITE</h2>
+              <p className="text-base font-black tracking-[0.2em] text-[var(--brand-900)]">BARANGAY IBA</p>
+              <p className="text-xs uppercase tracking-[0.3em] text-stone-500">Silang, Cavite</p>
             </div>
-          </div>
+          </NavLink>
 
-          <div className="flex flex-col gap-3 lg:items-end">
-          <ul className="flex flex-wrap gap-4 lg:justify-end text-sm font-semibold">
-            {headerNav.map((nav, index) => (
-              <li key={index}>
-                <NavLink
-                  to={nav.path}
-                  className={({ isActive }) =>
-                    isActive
-                      ? "border-b-2 border-green-400 pb-1"
-                      : "hover:text-green-300"
-                  }
-                >
-                  {nav.name}
-                </NavLink>
-              </li>
+          <nav className="hidden items-center gap-6 lg:flex">
+            {navItems.map((item) => (
+              <NavLink key={item.to} to={item.to} end={item.to === "/"} className={navClass}>
+                {item.label}
+              </NavLink>
             ))}
-          </ul>
-          <div className="flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+          </nav>
+
+          <div className="hidden items-center gap-3 lg:flex">
             {isAuthenticated ? (
               <>
-                <NavLink to="/portal" className="rounded-full bg-white px-4 py-2 font-semibold text-green-700">
-                  {user?.firstName ? `${user.firstName}'s Portal` : "My Portal"}
+                <NavLink to={user?.role === "admin" ? "/admin" : "/portal"} className="rounded-full bg-[var(--brand-500)] px-4 py-2 text-sm font-semibold text-white">
+                  Open Portal
                 </NavLink>
-                <button onClick={logout} className="rounded-full border border-white px-4 py-2 font-semibold text-white">
+                <button onClick={logout} className="rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700">
                   Logout
                 </button>
               </>
             ) : (
               <>
-                <NavLink to="/login" className="rounded-full bg-white px-4 py-2 font-semibold text-green-700">
-                  Login
+                <NavLink to="/login" className="rounded-full bg-[var(--brand-500)] px-4 py-2 text-sm font-semibold text-white">
+                  Resident Login
                 </NavLink>
-                <NavLink to="/register" className="rounded-full border border-white px-4 py-2 font-semibold text-white">
-                  Register
+                <NavLink to="/admin/login" className="inline-flex items-center gap-2 rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700">
+                  <Shield className="h-4 w-4" />
+                  Admin
                 </NavLink>
               </>
             )}
           </div>
-          </div>
+
+          <button type="button" onClick={() => setOpen((value) => !value)} className="rounded-2xl border border-stone-200 p-2 text-stone-700 lg:hidden">
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
+
+        {open ? (
+          <div className="section-shell flex flex-col gap-4 border-t border-stone-200 py-4 lg:hidden">
+            <div className="grid gap-3">
+              {navItems.map((item) => (
+                <NavLink key={item.to} to={item.to} end={item.to === "/"} className={navClass} onClick={() => setOpen(false)}>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
+            <div className="flex flex-col gap-3">
+              {isAuthenticated ? (
+                <>
+                  <NavLink to={user?.role === "admin" ? "/admin" : "/portal"} onClick={() => setOpen(false)} className="rounded-full bg-[var(--brand-500)] px-4 py-2 text-center text-sm font-semibold text-white">
+                    Open Portal
+                  </NavLink>
+                  <button onClick={logout} className="rounded-full border border-stone-200 px-4 py-2 text-sm font-semibold text-stone-700">
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <NavLink to="/login" onClick={() => setOpen(false)} className="rounded-full bg-[var(--brand-500)] px-4 py-2 text-center text-sm font-semibold text-white">
+                    Resident Login
+                  </NavLink>
+                  <NavLink to="/admin/login" onClick={() => setOpen(false)} className="rounded-full border border-stone-200 px-4 py-2 text-center text-sm font-semibold text-stone-700">
+                    Admin Login
+                  </NavLink>
+                </>
+              )}
+            </div>
+          </div>
+        ) : null}
       </header>
 
-      {/* MAIN */}
-      <main className="min-h-screen">
+      <main className="min-h-[calc(100vh-200px)]">
         <Outlet />
       </main>
 
-      {/* FOOTER */}
-      <footer className="bg-green-600 text-white py-6 px-6">
-        <div className="max-w-7xl mx-auto flex justify-between items-center flex-wrap gap-6">
-          <div className="flex items-center gap-3">
-            <img src="/logo.png" className="h-20" />
-            <p className="text-sm">BARANGAY IBA SILANG, CAVITE</p>
+      <footer className="border-t border-stone-200 bg-white">
+        <div className="section-shell grid gap-8 py-10 md:grid-cols-3">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--brand-500)]">Barangay Iba</p>
+            <p className="text-sm leading-6 text-stone-600">
+              A resident-centered portal for requests, updates, voting, and public transparency across barangay services.
+            </p>
           </div>
-                    {/* QUICK LINKS */}
-          <div>
-            <h3 className="font-semibold mb-3">Quick Links</h3>
-            <ul className="space-y-2 text-sm text-green-100">
-              <li>
-                <NavLink to="/help-center" className="hover:text-white transition">
-                  Help Center
-                </NavLink>
-              </li>
-              <li>
-                <NavLink to="/terms-of-use" className="hover:text-white transition">
-                  Terms of Use
-                </NavLink>
-              </li>
-              <li>
-                <NavLink to="/privacy-policy" className="hover:text-white transition">
-                  Privacy Policy
-                </NavLink>
-              </li>
-            </ul>
+          <div className="space-y-2 text-sm text-stone-600">
+            <p className="font-semibold text-stone-900">Quick Links</p>
+            <NavLink to="/help-center" className="block hover:text-[var(--brand-500)]">Help Center</NavLink>
+            <NavLink to="/terms-of-use" className="block hover:text-[var(--brand-500)]">Terms of Use</NavLink>
+            <NavLink to="/privacy-policy" className="block hover:text-[var(--brand-500)]">Privacy Policy</NavLink>
           </div>
-
-          <div className="text-sm">
-            <p>Contact Us</p>
+          <div className="space-y-2 text-sm text-stone-600">
+            <p className="font-semibold text-stone-900">Contact</p>
             <p>Barangay Iba, Silang, Cavite</p>
-            <p>Phone: 639123456789</p>
+            <p>Phone: 0912 345 6789</p>
             <p>Email: barangayiba@gmail.com</p>
           </div>
         </div>
       </footer>
-    </>
+    </div>
   );
 };
 

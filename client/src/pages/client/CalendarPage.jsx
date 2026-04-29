@@ -1,0 +1,61 @@
+import { CalendarDays, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { api } from "../../lib/api";
+import { Card, EmptyState, PageHeader, Skeleton } from "../../components/ui";
+import { formatDate } from "../../lib/format";
+
+const CalendarPage = () => {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api("/public/events?upcomingOnly=true&page=1&limit=20")
+      .then((data) => setEvents(data.items || []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <section className="section-shell py-10 sm:py-14">
+      <PageHeader
+        eyebrow="Public Calendar"
+        title="Upcoming Barangay Events"
+        description="Keep track of barangay meetings, outreach activities, health drives, clean-up programs, and other community events."
+      />
+
+      <div className="mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        {loading
+          ? Array.from({ length: 6 }).map((_, index) => (
+              <Card key={index} className="space-y-4">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-5 w-2/3" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </Card>
+            ))
+          : events.map((event) => (
+              <Card key={event.id} className="space-y-4">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-[var(--brand-500)]">
+                  <CalendarDays className="h-4 w-4" />
+                  {event.type}
+                </div>
+                <h2 className="text-xl font-bold text-[var(--brand-900)]">{event.title}</h2>
+                <p className="text-sm text-stone-500">{formatDate(event.date)} {event.time ? `• ${event.time}` : ""}</p>
+                <div className="inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
+                  <MapPin className="h-3.5 w-3.5" />
+                  {event.location || "Barangay Hall"}
+                </div>
+                <p className="text-sm leading-6 text-stone-600">{event.description || "Details will be announced soon."}</p>
+              </Card>
+            ))}
+      </div>
+
+      {!loading && !events.length ? (
+        <div className="mt-8">
+          <EmptyState title="No upcoming events" description="The public calendar is clear right now." />
+        </div>
+      ) : null}
+    </section>
+  );
+};
+
+export default CalendarPage;

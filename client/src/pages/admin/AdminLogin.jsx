@@ -1,76 +1,86 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Shield, UserRound } from "lucide-react";
+import { useState } from "react";
+import { Navigate, useNavigate } from "react-router-dom";
+import { Button, Card } from "../../components/ui";
 import { useAuth } from "../../context/AuthContext";
-import { GreenBtn, LOGO_URL } from "./adminShared";
+import { useToast } from "../../context/ToastContext";
 
 const AdminLogin = () => {
-  const [user, setUser] = useState("admin");
-  const [pass, setPass] = useState("admin");
-  const [show, setShow] = useState(false);
-  const [remember, setRemember] = useState(true);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
-  const { login, loading, isAuthenticated, user: authUser } = useAuth();
+  const toast = useToast();
+  const { login, loading, isAuthenticated, user } = useAuth();
+  const [form, setForm] = useState({ username: "", password: "" });
 
-  useEffect(() => {
-    if (isAuthenticated && authUser?.role === "admin") {
-      navigate("/admin");
+  const submit = async (event) => {
+    event.preventDefault();
+    try {
+      const loggedInUser = await login({
+        usernameOrEmail: form.username,
+        password: form.password,
+        adminOnly: true,
+      });
+      navigate(loggedInUser.role === "admin" ? "/admin" : "/");
+    } catch (error) {
+      toast.error(error.message);
     }
-  }, [isAuthenticated, authUser, navigate]);
+  };
+
+  if (isAuthenticated && user?.role === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
 
   return (
-    <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#4caf50 0%,#1b5e20 100%)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <img
-        src={LOGO_URL}
-        alt="Barangay Iba logo"
-        style={{ width: 90, height: 90, borderRadius: "50%", border: "3px solid #fff", marginBottom: 8 }}
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-        }}
-      />
-      <div style={{ fontWeight: 800, fontSize: 22, color: "#fff", letterSpacing: 2 }}>BARANGAY IBA</div>
-      <div style={{ fontSize: 13, color: "#e8f5e9", letterSpacing: 2, marginBottom: 24 }}>SILANG, CAVITE</div>
+    <section className="min-h-screen bg-[linear-gradient(135deg,#103219_0%,#266a33_42%,#dfeedd_100%)] py-14 sm:py-20">
+      <div className="section-shell grid gap-10 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="space-y-6 text-white">
+          <div className="inline-flex rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em]">
+            Administrative Access
+          </div>
+          <h1 className="max-w-2xl text-4xl font-black tracking-tight sm:text-5xl">Manage services, accounts, and public updates.</h1>
+          <p className="max-w-xl text-base leading-7 text-emerald-50/85 sm:text-lg">
+            This portal is reserved for authorized barangay administrators and staff managing resident accounts, requests, elections, funds, and official notices.
+          </p>
+        </div>
 
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setError("");
-          try {
-            await login({ usernameOrEmail: user, password: pass, adminOnly: true });
-            navigate("/admin");
-          } catch (err) {
-            setError(err.message);
-          }
-        }}
-        style={{ background: "#fff", borderRadius: 8, width: "100%", maxWidth: 420, overflow: "hidden", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}
-      >
-        <div style={{ background: "#1a5c25", color: "#fff", textAlign: "center", fontWeight: 700, fontSize: 16, padding: "14px 0", letterSpacing: 2 }}>
-          ADMIN LOGIN
-        </div>
-        <div style={{ padding: "28px 36px" }}>
-          {error ? <div style={{ marginBottom: 12, borderRadius: 6, background: "#fdeaea", color: "#c0392b", padding: "10px 12px", fontSize: 13 }}>{error}</div> : null}
-          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "#ddd", margin: "0 auto 20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, color: "#888" }}>
-            A
+        <Card className="mx-auto w-full max-w-lg p-6 sm:p-8">
+          <div className="mb-6 text-center">
+            <img src="/logo.png" alt="Barangay Iba" className="mx-auto h-20 w-20 rounded-3xl border border-[var(--brand-100)] bg-white p-2" />
+            <h2 className="mt-4 text-3xl font-black text-[var(--brand-900)]">Admin Sign In</h2>
           </div>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>Username</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0f0f0", borderRadius: 5, padding: "8px 12px", margin: "6px 0 14px" }}>
-            <input value={user} onChange={(e) => setUser(e.target.value)} style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1 }} />
-          </div>
-          <label style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>Password</label>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#f0f0f0", borderRadius: 5, padding: "8px 12px", margin: "6px 0 14px" }}>
-            <input type={show ? "text" : "password"} value={pass} onChange={(e) => setPass(e.target.value)} style={{ border: "none", background: "transparent", outline: "none", fontSize: 13, flex: 1 }} />
-            <button type="button" onClick={() => setShow(!show)} style={{ border: "none", background: "transparent", cursor: "pointer", color: "#888", fontSize: 12 }}>
-              {show ? "Hide" : "Show"}
-            </button>
-          </div>
-          <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, cursor: "pointer", marginBottom: 20 }}>
-            <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} style={{ accentColor: "#2d7a3a" }} />
-            Remember Me
-          </label>
-          <GreenBtn type="submit">{loading ? "LOGGING IN..." : "LOGIN"}</GreenBtn>
-        </div>
-      </form>
-    </div>
+          <form className="space-y-4" onSubmit={submit}>
+            <label className="flex flex-col gap-2 text-sm font-medium text-stone-700">
+              <span>Username</span>
+              <div className="flex items-center rounded-2xl border border-stone-200 px-4 py-3">
+                <UserRound className="h-4 w-4 text-stone-400" />
+                <input
+                  type="text"
+                  value={form.username}
+                  onChange={(event) => setForm((current) => ({ ...current, username: event.target.value }))}
+                  className="ml-3 w-full outline-none"
+                  placeholder="admin username"
+                />
+              </div>
+            </label>
+            <label className="flex flex-col gap-2 text-sm font-medium text-stone-700">
+              <span>Password</span>
+              <div className="flex items-center rounded-2xl border border-stone-200 px-4 py-3">
+                <Shield className="h-4 w-4 text-stone-400" />
+                <input
+                  type="password"
+                  value={form.password}
+                  onChange={(event) => setForm((current) => ({ ...current, password: event.target.value }))}
+                  className="ml-3 w-full outline-none"
+                  placeholder="Enter your password"
+                />
+              </div>
+            </label>
+            <Button type="submit" className="w-full justify-center py-3" loading={loading}>
+              Access Admin Portal
+            </Button>
+          </form>
+        </Card>
+      </div>
+    </section>
   );
 };
 

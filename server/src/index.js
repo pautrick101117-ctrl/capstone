@@ -4,8 +4,11 @@ import authRoutes from "./routes/auth.js";
 import votingRoutes from "./routes/voting.js";
 import adminRoutes from "./routes/admin.js";
 import notificationRoutes from "./routes/notifications.js";
-import complaintRoutes from "./routes/complaints.js";
+import publicRoutes from "./routes/public.js";
+import requestRoutes from "./routes/requests.js";
+import suggestionRoutes from "./routes/suggestions.js";
 import { env } from "./lib/env.js";
+import { runMaintenance } from "./lib/scheduler.js";
 
 const app = express();
 
@@ -35,18 +38,27 @@ app.get("/api/content", async (_req, res, next) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api/public", publicRoutes);
 app.use("/api/voting", votingRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/notifications", notificationRoutes);
-app.use("/api/complaints", complaintRoutes);
+app.use("/api/requests", requestRoutes);
+app.use("/api/suggestions", suggestionRoutes);
 
 app.use((error, _req, res, _next) => {
   const status = error.status || 500;
   res.status(status).json({
     message: error.message || "Unexpected server error.",
+    code: error.code || null,
   });
 });
 
 app.listen(env.port, () => {
   console.log(`API listening on http://localhost:${env.port}`);
 });
+
+setInterval(() => {
+  runMaintenance().catch((error) => {
+    console.error("Maintenance task failed:", error.message);
+  });
+}, 60 * 1000);

@@ -1,119 +1,151 @@
-import { useState } from "react";
-import {
-  GreenBtn,
-  Paginate,
-  SearchBar,
-  shellStyles,
-  SmallInput,
-  StatusBadge,
-  Table,
-  useAdminCollection,
-} from "./adminShared";
+import { Upload } from "lucide-react";
+import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { Badge, Button, Card, PageHeader, TableShell, TextInput } from "../../components/ui";
+
+const emptyForm = { name: "", position: "", term: "", contact: "", isActive: true, photo: null, preview: "" };
 
 const Admin_Officials = () => {
-  const { items: officials, loading, reload, token } = useAdminCollection("/admin/officials", "officials", []);
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
-  const [form, setForm] = useState({ name: "", position: "", term: "2023-2026", contact: "", status: "active" });
-  const [feedback, setFeedback] = useState({ error: "", success: "" });
-  const perPage = 5;
-  const filtered = officials.filter((official) => official.name.toLowerCase().includes(search.toLowerCase()));
-  const paged = filtered.slice((page - 1) * perPage, page * perPage);
+  const { token } = useAuth();
+  const toast = useToast();
+  const [officials, setOfficials] = useState([]);
+  const [form, setForm] = useState(emptyForm);
 
-  const saveOfficial = async (official) => {
-    if (!official.name.trim() || !official.position.trim()) {
-      setFeedback({ error: "Official name and position are required.", success: "" });
-      return;
-    }
+  const load = async () => {
+    const data = await api("/admin/officials", { token });
+    setOfficials(data.officials || []);
+  };
 
-    setFeedback({ error: "", success: "" });
+  useEffect(() => {
+    if (token) load();
+  }, [token]);
+
+  const save = async (event) => {
+    event.preventDefault();
+    const formData = new FormData();
+    Object.entries(form).forEach(([key, value]) => {
+      if (key === "preview") return;
+      if (key === "photo" && value) formData.append("photo", value);
+      else if (key !== "photo") formData.append(key, value);
+    });
+
     try {
-      if (official.id) {
-        await api(`/admin/officials/${official.id}`, { method: "PATCH", token, body: official });
-      } else {
-        await api("/admin/officials", { method: "POST", token, body: official });
-      }
-      setForm({ name: "", position: "", term: "2023-2026", contact: "", status: "active" });
-      setFeedback({ error: "", success: official.id ? "Official updated." : "Official added." });
-      await reload();
+      await api("/admin/officials", { method: "POST", token, body: formData });
+      toast.success("Official saved.");
+      setForm(emptyForm);
+      await load();
     } catch (error) {
-      setFeedback({ error: error.message, success: "" });
+      toast.error(error.message);
+    }
+  };
+
+  const toggle = async (official) => {
+    try {
+      const formData = new FormData();
+      formData.append("name", official.name);
+      formData.append("position", official.position);
+      formData.append("term", official.term);
+      formData.append("contact", official.contact || "");
+      formData.append("photoUrl", official.photo_url || "");
+      formData.append("isActive", (!official.is_active).toString());
+      await api(`/admin/officials/${official.id}`, { method: "PATCH", token, body: formData });
+      toast.success("Official status updated.");
+      await load();
+    } catch (error) {
+      toast.error(error.message);
     }
   };
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12, flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 800, fontSize: 22, color: "#2d7a3a" }}>Officials</div>
-        <GreenBtn onClick={() => saveOfficial(form)}>Add New Official</GreenBtn>
-      </div>
-      <div style={shellStyles.card}>
-        {feedback.error ? <div style={{ marginBottom: 12, borderRadius: 6, background: "#fdeaea", color: "#c0392b", padding: "10px 12px", fontSize: 13 }}>{feedback.error}</div> : null}
-        {feedback.success ? <div style={{ marginBottom: 12, borderRadius: 6, background: "#e6f7ed", color: "#1a7a3a", padding: "10px 12px", fontSize: 13 }}>{feedback.success}</div> : null}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10, marginBottom: 16 }}>
-          <SmallInput value={form.name} onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))} placeholder="Official name" />
-          <SmallInput value={form.position} onChange={(e) => setForm((prev) => ({ ...prev, position: e.target.value }))} placeholder="Position" />
-          <SmallInput value={form.term} onChange={(e) => setForm((prev) => ({ ...prev, term: e.target.value }))} placeholder="Term" />
-          <SmallInput value={form.contact} onChange={(e) => setForm((prev) => ({ ...prev, contact: e.target.value }))} placeholder="Contact" />
-        </div>
-        <SearchBar
-          value={search}
-          onChange={(value) => {
-            setSearch(value);
-            setPage(1);
-          }}
-        />
-        <Table
-          cols={["#", "Name", "Position", "Term", "Contact", "Status", "Actions"]}
-          rows={paged}
-          renderRow={(official, i) => (
-            <>
-              <td style={{ padding: "10px 10px" }}>{(page - 1) * perPage + i + 1}.</td>
-              <td style={{ padding: "10px 10px" }}>{official.name}</td>
-              <td style={{ padding: "10px 10px" }}>{official.position}</td>
-              <td style={{ padding: "10px 10px" }}>{official.term}</td>
-              <td style={{ padding: "10px 10px" }}>{official.contact}</td>
-              <td style={{ padding: "10px 10px" }}>
-                <StatusBadge status={official.status === "active" ? "Active" : "Pending"} />
-              </td>
-              <td style={{ padding: "10px 10px" }}>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <GreenBtn
-                    small
-                    onClick={() =>
-                      setForm({
-                        id: official.id,
-                        name: official.name,
-                        position: official.position,
-                        term: official.term,
-                        contact: official.contact,
-                        status: official.status || "active",
-                      })
-                    }
-                  >
-                    Edit
-                  </GreenBtn>
-                  <GreenBtn
-                    small
-                    danger
-                    onClick={() =>
-                      api(`/admin/officials/${official.id}`, {
-                        method: "PATCH",
-                        token,
-                        body: { status: official.status === "active" ? "inactive" : "active" },
-                      }).then(reload)
-                    }
-                  >
-                    Toggle
-                  </GreenBtn>
-                </div>
-              </td>
-            </>
-          )}
-        />
-        {loading ? <div style={{ marginTop: 12, fontSize: 13, color: "#666" }}>Loading officials...</div> : null}
-        <Paginate total={filtered.length} perPage={perPage} page={page} setPage={setPage} />
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Officials"
+        title="Manage public official profiles"
+        description="Upload photos, assign positions and terms, and deactivate former officials without removing their records."
+      />
+
+      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+        <Card>
+          <h2 className="text-xl font-bold text-[var(--brand-900)]">Add Official</h2>
+          <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={save}>
+            <TextInput label="Name" value={form.name} onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))} />
+            <TextInput label="Position" value={form.position} onChange={(event) => setForm((current) => ({ ...current, position: event.target.value }))} />
+            <TextInput label="Term" value={form.term} onChange={(event) => setForm((current) => ({ ...current, term: event.target.value }))} />
+            <TextInput label="Contact" value={form.contact} onChange={(event) => setForm((current) => ({ ...current, contact: event.target.value }))} />
+            <label className="sm:col-span-2 flex flex-col gap-2 text-sm font-medium text-stone-700">
+              <span>Photo Upload</span>
+              <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-stone-300 px-4 py-5 text-sm text-stone-500">
+                <Upload className="h-4 w-4" />
+                <span>{form.photo ? form.photo.name : "Choose photo"}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    setForm((current) => ({
+                      ...current,
+                      photo: file || null,
+                      preview: file ? URL.createObjectURL(file) : "",
+                    }));
+                  }}
+                />
+              </label>
+            </label>
+            {form.preview ? <img src={form.preview} alt="Official preview" className="sm:col-span-2 h-48 w-full rounded-3xl object-cover" /> : null}
+            <div className="sm:col-span-2">
+              <Button type="submit">Save Official</Button>
+            </div>
+          </form>
+        </Card>
+
+        <Card>
+          <h2 className="text-xl font-bold text-[var(--brand-900)]">Official Directory</h2>
+          <div className="mt-5">
+            <TableShell>
+              <table className="min-w-full text-sm">
+                <thead className="bg-stone-50 text-left text-stone-500">
+                  <tr>
+                    <th className="px-4 py-3 font-semibold">Official</th>
+                    <th className="px-4 py-3 font-semibold">Position</th>
+                    <th className="px-4 py-3 font-semibold">Term</th>
+                    <th className="px-4 py-3 font-semibold">Status</th>
+                    <th className="px-4 py-3 font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {officials.map((official) => (
+                    <tr key={official.id} className="border-t border-stone-100">
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-3">
+                          {official.photo_url ? (
+                            <img src={official.photo_url} alt={official.name} className="h-12 w-12 rounded-2xl object-cover" />
+                          ) : (
+                            <div className="h-12 w-12 rounded-2xl bg-[var(--brand-50)]" />
+                          )}
+                          <div>
+                            <p className="font-semibold text-[var(--brand-900)]">{official.name}</p>
+                            <p className="text-xs text-stone-500">{official.contact || "No contact listed"}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-4 text-stone-600">{official.position}</td>
+                      <td className="px-4 py-4 text-stone-600">{official.term}</td>
+                      <td className="px-4 py-4"><Badge tone={official.is_active ? "success" : "danger"}>{official.is_active ? "Active" : "Inactive"}</Badge></td>
+                      <td className="px-4 py-4">
+                        <Button variant="secondary" onClick={() => toggle(official)}>
+                          {official.is_active ? "Deactivate" : "Activate"}
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableShell>
+          </div>
+        </Card>
       </div>
     </div>
   );

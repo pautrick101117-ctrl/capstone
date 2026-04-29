@@ -1,125 +1,135 @@
+import { CheckCircle2, Clock3 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../../context/AuthContext";
 import { api } from "../../lib/api";
+import { useAuth } from "../../context/AuthContext";
+import { useToast } from "../../context/ToastContext";
+import { Badge, Button, Card, EmptyState, PageHeader } from "../../components/ui";
+import { countdownText, formatDateTime } from "../../lib/format";
 
 const VotingCenter = () => {
-  const { isAuthenticated, token, refreshProfile, refreshNotifications } = useAuth();
+  const { token } = useAuth();
+  const toast = useToast();
   const [election, setElection] = useState(null);
-  const [selectedOption, setSelectedOption] = useState("");
   const [hasVoted, setHasVoted] = useState(false);
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [completionSaving, setCompletionSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const [electionData, statusData] = await Promise.all([
+        api("/voting/current", { token }),
+        api("/voting/my-status", { token }).catch(() => ({ hasVoted: false })),
+      ]);
+      setElection(electionData.election);
+      setHasVoted(Boolean(statusData.hasVoted));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const [live, status] = await Promise.all([
-          api("/voting/live"),
-          api("/voting/my-status", { token }),
-        ]);
-        setElection(live.election);
-        setHasVoted(status.hasVoted);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (token) {
-      load();
-    }
+    if (token) load();
   }, [token]);
 
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  const handleVote = async () => {
-    if (!selectedOption) return;
-
-    setSubmitting(true);
-    setMessage("");
+  const castVote = async (optionId) => {
+    setSaving(true);
     try {
-      const data = await api("/voting/vote", {
-        method: "POST",
-        token,
-        body: { optionId: selectedOption },
-      });
-      setMessage(data.message);
-      setHasVoted(true);
-      await Promise.all([refreshProfile(), refreshNotifications()]);
-      const live = await api("/voting/live");
-      setElection(live.election);
+      await api("/voting/vote", { method: "POST", token, body: { optionId } });
+      toast.success("Your vote has been recorded.");
+      await load();
     } catch (error) {
-      setMessage(error.message);
+      toast.error(error.message);
     } finally {
-      setSubmitting(false);
+      setSaving(false);
+    }
+  };
+
+  const markCompleted = async () => {
+    setCompletionSaving(true);
+    try {
+      await api("/voting/mark-completed", { method: "POST", token, body: { electionId: election.id } });
+      toast.success("Project delivery confirmation submitted.");
+      await load();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setCompletionSaving(false);
     }
   };
 
   if (loading) {
-    return <div className="rounded-3xl bg-white p-8 shadow">Loading voting center...</div>;
+    return <div className="text-sm text-stone-500">Loading election details...</div>;
   }
 
   if (!election) {
-    return <div className="rounded-3xl bg-white p-8 shadow">There is no live election right now.</div>;
+    return <EmptyState title="No election available" description="There is no active or recent election to display right now." />;
   }
 
   return (
-    <div className="rounded-3xl bg-white p-6 shadow">
-      <div className="flex flex-col gap-4 border-b border-stone-200 pb-6 md:flex-row md:items-start md:justify-between">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.2em] text-green-700">Live Election</p>
-          <h1 className="mt-2 text-2xl font-bold text-stone-800">{election.title}</h1>
-          <p className="mt-2 max-w-2xl text-sm text-stone-600">{election.description}</p>
-        </div>
-        <div className="rounded-2xl bg-green-700 px-5 py-4 text-white">
-          <p className="text-xs uppercase tracking-[0.2em] text-green-100">One vote only</p>
-          <p className="mt-2 text-lg font-semibold">{hasVoted ? "Vote submitted" : "Vote pending"}</p>
-        </div>
-      </div>
+    <div className="space-y-8">
+      <PageHeader
+        eyebrow="Resident Voting Center"
+        title={election.title}
+        description={election.description || "Review the project details and cast one vote during the live election window."}
+      />
 
-      {message ? (
-        <div className="mt-4 rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-          {message}
+      <Card className="overflow-hidden p-0">
+        <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
+          <div className="h-72 bg-[var(--brand-50)] lg:h-full">
+            {election.imageUrl ? (
+              <img src={election.imageUrl} alt={election.title} className="h-full w-full object-cover" />
+            ) : (
+              <div className="flex h-full items-center justify-center bg-[linear-gradient(135deg,#dfeedd,#ffffff)] text-[var(--brand-600)]">
+                Election image
+              </div>
+            )}
+          </div>
+          <div className="space-y-6 p-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge tone={election.status === "live" ? "success" : "neutral"}>{election.status}</Badge>
+              <div className="inline-flex items-center gap-2 rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold text-stone-700">
+                <Clock3 className="h-3.5 w-3.5" />
+                {countdownText(election.endsAt)}
+              </div>
+            </div>
+            <div className="rounded-2xl bg-[var(--brand-50)] p-4 text-sm text-stone-600">
+              Voting ends on {formatDateTime(election.endsAt)}. Eligible residents: {election.eligibleVoters}. Votes cast so far: {election.totalVotes}.
+            </div>
+            <div className="space-y-4">
+              {election.options.map((option) => (
+                <div key={option.id} className="rounded-2xl border border-stone-200 p-4">
+                  <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-[var(--brand-900)]">{option.name}</h3>
+                      <p className="mt-1 text-sm text-stone-500">{option.description || "No extra description provided."}</p>
+                    </div>
+                    <Button
+                      onClick={() => castVote(option.id)}
+                      disabled={saving || hasVoted || election.status !== "live"}
+                      loading={saving}
+                    >
+                      {hasVoted ? "Vote submitted" : "Vote for this option"}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            {hasVoted ? (
+              <div className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">
+                <CheckCircle2 className="h-4 w-4" />
+                Your vote has already been counted.
+              </div>
+            ) : null}
+            {election.status === "closed" ? (
+              <Button onClick={markCompleted} loading={completionSaving}>
+                Mark project as completed
+              </Button>
+            ) : null}
+          </div>
         </div>
-      ) : null}
-
-      <div className="mt-6 grid gap-4 md:grid-cols-2">
-        {election.options.map((option) => {
-          const checked = selectedOption === option.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              disabled={hasVoted}
-              onClick={() => setSelectedOption(option.id)}
-              className={`rounded-3xl border p-5 text-left transition ${
-                checked ? "border-green-700 bg-green-50" : "border-stone-200 bg-white"
-              } ${hasVoted ? "cursor-not-allowed opacity-70" : "hover:border-green-500"}`}
-            >
-              <p className="text-lg font-bold text-stone-800">{option.name}</p>
-              <p className="mt-2 text-sm text-stone-600">{option.description || "Priority infrastructure item"}</p>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-[0.2em] text-green-700">
-                Current votes: {option.votes}
-              </p>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="mt-6 flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={handleVote}
-          disabled={!selectedOption || hasVoted || submitting}
-          className="rounded-full bg-green-700 px-6 py-3 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-stone-300"
-        >
-          {hasVoted ? "Vote Locked" : submitting ? "Submitting..." : "Submit Vote"}
-        </button>
-        <p className="text-sm text-stone-500">Your account can only cast one vote for each live election.</p>
-      </div>
+      </Card>
     </div>
   );
 };

@@ -1,102 +1,134 @@
-import React from "react";
+import { FileText, ReceiptText } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { api } from "../../lib/api";
+import { Badge, Card, EmptyState, PageHeader, TableShell } from "../../components/ui";
+import { formatCurrency, formatDate } from "../../lib/format";
 
 const FundTransparency = () => {
-  const summary = [
-    { label: "Total Funds", value: "₱ 300,000" },
-    { label: "Spent Funds", value: "₱ 300,000" },
-    { label: "Remaining Funds", value: "₱ 300,000" },
-  ];
+  const [data, setData] = useState({ sources: [], projects: [] });
+  const [loading, setLoading] = useState(true);
 
-  const projects = [
-    {
-      project: "Preparation for the Upcoming Basketball and Volleyball League",
-      date: "April 14, 2018",
-      expenses:
-        "Total Expenses: ₱4,500\nPaint (cost incl. labor) - ₱3,000\nLandscaping and repaving workers - ₱1,500",
-      description:
-        "Funds were utilized to purchase new sports equipment and improve facilities, successfully supporting the basketball and volleyball leagues.",
-    },
-    {
-      project: "Kontra Dengue Clean-Up Drive",
-      date: "August 22, 2023",
-      expenses:
-        "Total Expenses: ₱5,500\nCleaning materials (trash bags, gloves, disinfectant) - ₱2,500\nTools (broom, shovel, canal cleaning tools) - ₱1,500\nLabor (community helpers/volunteers) - ₱1,500",
-      description:
-        "A successful community-wide clean-up drive aimed at preventing dengue through the clearing of canals and conducting information campaigns.",
-    },
-    {
-      project: "Nutrition para sa Kabataan",
-      date: "November 22, 2024",
-      expenses:
-        "Total Expenses: ₱3,000\nFood supplies (rice, vegetables, protein) - ₱1,500\nCooking materials and utensils - ₱700\nLabor (food preparation and distribution) - ₱500\nNutrition education materials - ₱300",
-      description:
-        "Provided healthy meals and nutrition education to undernourished children in the barangay.",
-    },
-    {
-      project: "Medical Mission and Free Check-Up",
-      date: "December 18, 2025",
-      expenses:
-        "Total Expenses: ₱8,000\nMedicines and vitamins - ₱5,000\nMedical supplies (gloves, masks, syringes) - ₱1,500\nLabor (volunteer health workers) - ₱1,500",
-      description:
-        "Free medical consultations and essential health services were provided to residents in need, ensuring access to proper healthcare.",
-    },
-  ];
+  useEffect(() => {
+    api("/public/funds")
+      .then((payload) => setData(payload))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const totals = useMemo(() => {
+    const total = (data.sources || []).reduce((sum, item) => sum + Number(item.allocated_amount || 0), 0);
+    const spent = (data.projects || []).reduce((sum, item) => sum + Number(item.amount || 0), 0);
+    return {
+      total,
+      spent,
+      remaining: Math.max(total - spent, 0),
+    };
+  }, [data]);
 
   return (
-    <div
-      className="min-h-screen bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/landingPage-bg.png')" }}
-    >
-      <div className="pt-28 px-6 pb-10 bg-black/20 min-h-screen">
-        <div className="max-w-7xl mx-auto">
-          <div className="bg-white/80 rounded-lg p-6 mb-6">
-            <h1 className="inline-block bg-green-600 text-white px-4 py-2 rounded-full text-xl font-bold">
-              FUND TRANSPARENCY
-            </h1>
-            <p className="mt-4 text-sm text-gray-800 max-w-3xl">
-              At Barangay Iba, we are committed to ensuring transparency in how community funds are used. Here is a detailed breakdown of our recent projects and expenses.
-            </p>
-          </div>
+    <section className="section-shell py-10 sm:py-14">
+      <PageHeader
+        eyebrow="Fund Transparency"
+        title="Where barangay funds go"
+        description="Review allocated fund sources, project spending, receipt files, and administration terms tied to each public project entry."
+      />
 
-          <section className="mb-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Fund Summary Overview</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {summary.map((item) => (
-                <div key={item.label} className="bg-white/90 rounded-lg p-5 text-center shadow">
-                  <p className="text-sm font-semibold text-gray-700">{item.label}</p>
-                  <p className="text-2xl font-bold text-green-700">{item.value}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="bg-white/90 rounded-lg overflow-hidden shadow">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
-                <thead className="bg-green-700 text-white">
-                  <tr>
-                    <th className="text-left p-4">Project</th>
-                    <th className="text-left p-4">Date Implemented</th>
-                    <th className="text-left p-4">Expenses</th>
-                    <th className="text-left p-4">Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projects.map((item, index) => (
-                    <tr key={index} className="border-t align-top">
-                      <td className="p-4 w-1/4">{item.project}</td>
-                      <td className="p-4 w-1/6">{item.date}</td>
-                      <td className="p-4 whitespace-pre-line w-1/4">{item.expenses}</td>
-                      <td className="p-4 w-1/3">{item.description}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        </div>
+      <div className="mt-8 grid gap-5 lg:grid-cols-3">
+        {[
+          ["Total Funds", totals.total],
+          ["Spent", totals.spent],
+          ["Remaining", totals.remaining],
+        ].map(([label, value]) => (
+          <Card key={label}>
+            <p className="text-sm font-medium text-stone-500">{label}</p>
+            <p className="mt-3 text-3xl font-black text-[var(--brand-900)]">{formatCurrency(value)}</p>
+          </Card>
+        ))}
       </div>
-    </div>
+
+      <div className="mt-8 grid gap-8 xl:grid-cols-[0.7fr_1.3fr]">
+        <Card>
+          <div className="flex items-center gap-3">
+            <ReceiptText className="h-5 w-5 text-[var(--brand-600)]" />
+            <h2 className="text-xl font-bold text-[var(--brand-900)]">Fund Sources</h2>
+          </div>
+          <div className="mt-5 space-y-4">
+            {!data.sources.length && !loading ? (
+              <EmptyState title="No fund sources yet" description="Allocated fund pools will appear here once encoded by the barangay administration." />
+            ) : (
+              data.sources.map((source) => (
+                <div key={source.id} className="rounded-2xl border border-stone-200 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-[var(--brand-900)]">{source.name}</p>
+                      <p className="mt-1 text-sm text-stone-500">Administration term: {source.term}</p>
+                    </div>
+                    <p className="font-bold text-[var(--brand-700)]">{formatCurrency(source.allocated_amount)}</p>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-[var(--brand-600)]" />
+            <h2 className="text-xl font-bold text-[var(--brand-900)]">Project History</h2>
+          </div>
+          {loading ? (
+            <p className="mt-5 text-sm text-stone-500">Loading fund projects...</p>
+          ) : !data.projects.length ? (
+            <div className="mt-5">
+              <EmptyState title="No project entries yet" description="Funded projects will appear here once they are recorded." />
+            </div>
+          ) : (
+            <div className="mt-5 space-y-5">
+              <TableShell>
+                <table className="min-w-full text-sm">
+                  <thead className="bg-stone-50 text-left text-stone-500">
+                    <tr>
+                      <th className="px-4 py-3 font-semibold">Project</th>
+                      <th className="px-4 py-3 font-semibold">Date</th>
+                      <th className="px-4 py-3 font-semibold">Amount</th>
+                      <th className="px-4 py-3 font-semibold">Term</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 font-semibold">Receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.projects.map((project) => (
+                      <tr key={project.id} className="border-t border-stone-100">
+                        <td className="px-4 py-4">
+                          <p className="font-semibold text-[var(--brand-900)]">{project.name}</p>
+                          <p className="mt-1 text-xs text-stone-500">{project.description}</p>
+                        </td>
+                        <td className="px-4 py-4 text-stone-600">{formatDate(project.date)}</td>
+                        <td className="px-4 py-4 font-semibold text-[var(--brand-700)]">{formatCurrency(project.amount)}</td>
+                        <td className="px-4 py-4 text-stone-600">{project.term}</td>
+                        <td className="px-4 py-4">
+                          <Badge tone={project.status === "completed" ? "success" : project.status === "cancelled" ? "danger" : "warning"}>
+                            {project.status}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-4">
+                          {project.receiptUrl ? (
+                            <a href={project.receiptUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[var(--brand-600)] hover:underline">
+                              View file
+                            </a>
+                          ) : (
+                            <span className="text-stone-400">None</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </TableShell>
+            </div>
+          )}
+        </Card>
+      </div>
+    </section>
   );
 };
 

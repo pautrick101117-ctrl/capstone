@@ -1,140 +1,93 @@
-import { Outlet, NavLink, useLocation, useNavigate } from "react-router-dom";
+import {
+  BadgePlus,
+  Banknote,
+  BellRing,
+  CalendarDays,
+  ClipboardList,
+  Gauge,
+  Landmark,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Users,
+  Vote,
+  X,
+} from "lucide-react";
+import { useState } from "react";
+import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
-import { LOGO_URL, shellStyles } from "../../pages/admin/adminShared";
+import { Button } from "../ui";
 
-const Header = () => (
-  <div style={{ background: "#2d7a3a", display: "flex", alignItems: "center", padding: "0 24px", height: 64, gap: 16 }}>
-    <img
-      src={LOGO_URL}
-      alt="Barangay Iba logo"
-      style={{ width: 44, height: 44, borderRadius: "50%", background: "#fff" }}
-      onError={(e) => {
-        e.currentTarget.style.display = "none";
-      }}
-    />
-    <div style={{ color: "#fff", marginRight: 24 }}>
-      <div style={{ fontWeight: 800, fontSize: 15, letterSpacing: 1 }}>BARANGAY IBA</div>
-      <div style={{ fontSize: 11, letterSpacing: 1 }}>SILANG, CAVITE</div>
-    </div>
-    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ width: 38, height: 38, borderRadius: "50%", background: "#aed9b6", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "#2d7a3a" }}>
-        A
-      </div>
-      <div style={{ color: "#fff", textAlign: "right" }}>
-        <div style={{ fontWeight: 700, fontSize: 13 }}>ADMIN</div>
-        <div style={{ fontSize: 11 }}>ADMINISTRATOR</div>
-      </div>
-    </div>
-  </div>
-);
+const items = [
+  { to: "/admin", label: "Dashboard", icon: LayoutDashboard, end: true },
+  { to: "/admin/residents", label: "Residents", icon: Users },
+  { to: "/admin/requests", label: "Requests", icon: ClipboardList },
+  { to: "/admin/officials", label: "Officials", icon: Landmark },
+  { to: "/admin/news", label: "News", icon: BadgePlus },
+  { to: "/admin/announcements", label: "Announcements", icon: BellRing },
+  { to: "/admin/funds", label: "Funds", icon: Banknote },
+  { to: "/admin/events", label: "Events", icon: CalendarDays },
+  { to: "/admin/voting", label: "Voting", icon: Vote },
+  { to: "/admin/census", label: "Census", icon: Gauge },
+];
 
-const Footer = () => (
-  <div style={{ background: "#2d7a3a", color: "#fff", padding: "24px 40px", marginTop: 40, display: "flex", gap: 40, alignItems: "flex-start", flexWrap: "wrap" }}>
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
-      <img
-        src={LOGO_URL}
-        alt="Barangay Iba logo"
-        style={{ width: 60, height: 60, borderRadius: "50%", border: "2px solid #fff" }}
-        onError={(e) => {
-          e.currentTarget.style.display = "none";
-        }}
-      />
-      <div style={{ fontWeight: 800, letterSpacing: 1, fontSize: 13 }}>BARANGAY IBA</div>
-      <div style={{ fontSize: 11 }}>SILANG, CAVITE</div>
-    </div>
-    <div>
-      <div style={{ fontWeight: 700, marginBottom: 8 }}>Contact Us</div>
-      <div style={{ fontSize: 13, lineHeight: 1.8 }}>
-        Barangay IBA
-        <br />
-        Silang, Cavite, Philippines
-        <br />
-        Phone: +639123456789
-        <br />
-        Email: barangaylba@gmail.com
-      </div>
-    </div>
-    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-      <div style={{ background: "#1877f2", borderRadius: "50%", width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 16 }}>
-        f
-      </div>
-      <span style={{ fontSize: 13 }}>fb.com/BarangayIBAOfficialPage</span>
-    </div>
-  </div>
-);
+const itemClass = ({ isActive }) =>
+  `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
+    isActive ? "bg-[var(--brand-500)] text-white shadow-lg shadow-emerald-900/15" : "text-stone-600 hover:bg-[var(--brand-50)] hover:text-[var(--brand-600)]"
+  }`;
 
-const getActivePage = (pathname) => {
-  if (pathname === "/admin" || pathname === "/admin/") return "dashboard";
-  const segment = pathname.split("/")[2];
-  return segment || "dashboard";
-};
-
-const Sidebar = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const { logout } = useAuth();
-  const active = getActivePage(location.pathname);
-  const items = [
-    { id: "dashboard", label: "Dashboard", to: "/admin" },
-    { id: "residents", label: "Residents", to: "/admin/residents" },
-    { id: "officials", label: "Officials", to: "/admin/officials" },
-    { id: "clearances", label: "Users To Approve", to: "/admin/clearances" },
-    { id: "complaints", label: "Complaints", to: "/admin/complaints" },
-    { id: "settings", label: "Settings", to: "/admin/settings" },
-    { id: "census", label: "Census", to: "/admin/census" },
-    { id: "voting", label: "Voting Results", to: "/admin/voting" },
-  ];
+const AdminPageLayout = () => {
+  const [open, setOpen] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
-    <div style={{ width: 220, minHeight: "100%", background: "#fff", borderRight: "1px solid #e0e0e0", paddingTop: 12 }}>
-      <div style={{ background: "#2d7a3a", color: "#fff", fontWeight: 700, fontSize: 13, padding: "10px 16px", borderRadius: "0 0 4px 4px", margin: "0 8px 8px" }}>
-        User Management
+    <div className="min-h-screen bg-[var(--surface)]">
+      <header className="sticky top-0 z-40 border-b border-stone-200 bg-white">
+        <div className="section-shell flex items-center justify-between gap-4 py-4">
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={() => setOpen((value) => !value)} className="rounded-2xl border border-stone-200 p-2 lg:hidden">
+              {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <img src="/logo.png" alt="Barangay Iba" className="h-12 w-12 rounded-2xl border border-[var(--brand-100)] bg-white p-1" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--brand-500)]">Admin Portal</p>
+              <h1 className="text-xl font-black text-[var(--brand-900)]">{user?.fullName || "Barangay Admin"}</h1>
+            </div>
+          </div>
+          <Button variant="secondary" onClick={logout}>
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
+        </div>
+      </header>
+
+      <div className="section-shell flex gap-8 py-8">
+        <aside className={`${open ? "fixed inset-0 z-40 bg-black/20 lg:static lg:bg-transparent" : "hidden lg:block"} lg:w-72`}>
+          <div className={`${open ? "absolute left-4 top-4 h-[calc(100vh-2rem)] w-72" : ""} rounded-[2rem] border border-stone-200 bg-white p-5 shadow-sm`}>
+            <div className="mb-6">
+              <p className="text-sm font-semibold text-stone-500">Navigation</p>
+              <h2 className="text-lg font-bold text-[var(--brand-900)]">Administrative tools</h2>
+            </div>
+            <nav className="space-y-2">
+              {items.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink key={item.to} to={item.to} end={item.end} className={itemClass} onClick={() => setOpen(false)}>
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+          </div>
+        </aside>
+
+        <main className="min-w-0 flex-1">
+          <Outlet />
+        </main>
       </div>
-      {items.map((item) => (
-        <NavLink
-          key={item.id}
-          to={item.to}
-          end={item.id === "dashboard"}
-          style={{
-            display: "block",
-            textDecoration: "none",
-            padding: "10px 18px",
-            fontSize: 13,
-            fontWeight: active === item.id ? 700 : 400,
-            background: active === item.id ? "#2d7a3a" : "transparent",
-            color: active === item.id ? "#fff" : "#333",
-            borderRadius: 4,
-            margin: "1px 6px",
-          }}
-        >
-          {item.label}
-        </NavLink>
-      ))}
-      <button
-        type="button"
-        onClick={() => {
-          logout();
-          navigate("/admin/login");
-        }}
-        style={{ border: "none", background: "transparent", padding: "10px 18px", cursor: "pointer", fontSize: 13, color: "#c0392b", display: "flex", alignItems: "center", gap: 8, margin: "1px 6px" }}
-      >
-        Logout
-      </button>
     </div>
   );
 };
-
-const AdminPageLayout = () => (
-  <div style={shellStyles.page}>
-    <Header />
-    <div style={shellStyles.body}>
-      <Sidebar />
-      <div style={shellStyles.main}>
-        <Outlet />
-      </div>
-    </div>
-    <Footer />
-  </div>
-);
 
 export default AdminPageLayout;
